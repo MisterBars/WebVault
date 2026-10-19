@@ -1,0 +1,31 @@
+# Local configuration and secrets
+Web.config
+web.config
+*.local.config
+.env
+.env.*
+!.env.example
+
+# User data and backups
+/WebVaultData/
+/App_Data/
+/data/
+/backups/
+/history/
+/vaults/
+*.bak
+*.mdf
+*.ldf
+*.mdb
+*.accdb
+
+# Editor and generated files
+.vs/
+.vscode/
+*.user
+*.suo
+/obj/
+/logs/
+*.log
+Thumbs.db
+.DS_Store
