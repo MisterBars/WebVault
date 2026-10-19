@@ -1,54 +1,13 @@
 <!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="referrer" content="same-origin">
-<title>WebVault — вход</title>
-<style>
-body{background:#151821;color:#edf0f7;font:16px/1.6 Arial,sans-serif;margin:0}main{max-width:640px;margin:35px auto;padding:20px}section,details{padding:20px;background:#202533;border-radius:10px;margin:18px 0}label{display:block;margin:10px 0}input{display:block;box-sizing:border-box;width:100%;padding:10px;font:inherit;background:#151821;color:#fff;border:1px solid #768198;border-radius:5px}button{padding:10px 16px;margin:10px 8px 0 0;cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#91b7ff}[hidden]{display:none!important}
-</style>
-</head>
-<body><main>
-<h1>WebVault</h1><p>Тестирование авторизации. <a href="index.html">Диагностика сайта</a></p>
-<section id="loginPanel"><h2>Вход</h2>
-<form id="loginForm">
-<label>Логин<input name="login" autocomplete="username" required minlength="3" maxlength="64" pattern="[A-Za-z0-9_.-]{3,64}"></label>
-<label>Пароль<input name="password" type="password" autocomplete="current-password" required maxlength="128"></label>
-<button type="submit">Войти</button></form></section>
-<section id="userPanel" hidden><h2>Вы вошли</h2><p id="userInfo"></p><button id="refresh" type="button">Проверить сессию</button><button id="logout" type="button">Выйти</button></section>
-<details id="setupPanel"><summary>Первоначальная настройка — только на сервере</summary>
-<p>Сначала включите настройку и задайте случайный ключ в локальном Web.config. После создания администратора отключите настройку и удалите ключ. Логин: латинские буквы, цифры, точка, дефис или подчёркивание.</p>
-<form id="setupForm">
-<label>Ключ настройки<input name="setupKey" type="password" autocomplete="off" required maxlength="256"></label>
-<label>Логин администратора<input name="login" autocomplete="username" required minlength="3" maxlength="64" pattern="[A-Za-z0-9_.-]{3,64}"></label>
-<label>Имя в интерфейсе<input name="displayName" required maxlength="100"></label>
-<label>Пароль — от 15 до 128 символов<input name="password" type="password" autocomplete="new-password" required minlength="15" maxlength="128"></label>
-<label>Повтор пароля<input name="confirmPassword" type="password" autocomplete="new-password" required minlength="15" maxlength="128"></label>
-<button type="submit">Создать администратора</button></form></details>
-<pre id="status" role="status" aria-live="polite"></pre>
-</main>
-<script>
-(function(){
-'use strict';
-var csrf=null;var busy=false;
-var status=document.getElementById('status');
-function show(text){status.textContent=text;}
-function request(action,data,key){
-var options={method:data===null?'GET':'POST',credentials:'same-origin',cache:'no-store',headers:{'X-WebVault-Request':'1'}};
-if(data!==null){options.headers['Content-Type']='application/json';options.body=JSON.stringify(data);}
-if(key){options.headers['X-Setup-Key']=key;}
-if(csrf){options.headers['X-CSRF-Token']=csrf;}
-return fetch('api/auth/'+action+'.ashx',options).then(function(response){
-return response.json().then(function(body){if(!response.ok){var error=new Error(body.error||('HTTP '+response.status));error.status=response.status;error.id=body.errorId;throw error;}return body;});
-});
-}
-function signedOut(){csrf=null;document.getElementById('userPanel').hidden=true;document.getElementById('loginPanel').hidden=false;document.getElementById('setupPanel').hidden=false;}
-function me(){return request('me',null).then(function(body){csrf=body.csrfToken;document.getElementById('userInfo').textContent=body.user.displayName+' ('+body.user.login+')'+(body.user.isAdmin?' — администратор':'');document.getElementById('userPanel').hidden=false;document.getElementById('loginPanel').hidden=true;document.getElementById('setupPanel').hidden=true;return body;}).catch(function(error){if(error.status===401){signedOut();}throw error;});}
-function run(work){if(busy){return;}busy=true;var buttons=document.querySelectorAll('button');for(var i=0;i<buttons.length;i++){buttons[i].disabled=true;}show('Выполняется...');return work().catch(function(error){show(error.message+(error.id?' / '+error.id:''));}).then(function(){busy=false;for(var i=0;i<buttons.length;i++){buttons[i].disabled=false;}});}
-document.getElementById('loginForm').addEventListener('submit',function(event){event.preventDefault();var form=this;run(function(){return request('login',{login:form.elements.login.value,password:form.elements.password.value}).then(function(){form.elements.password.value='';return me();}).then(function(){show('Вход выполнен.');});});});
-document.getElementById('setupForm').addEventListener('submit',function(event){event.preventDefault();var form=this;if(form.elements.password.value!==form.elements.confirmPassword.value){show('Пароли не совпадают.');return;}run(function(){return request('setup',{login:form.elements.login.value,displayName:form.elements.displayName.value,password:form.elements.password.value},form.elements.setupKey.value).then(function(){document.getElementById('loginForm').elements.login.value=form.elements.login.value;form.reset();document.getElementById('setupPanel').open=false;show('Администратор создан. Отключите настройку в Web.config, затем войдите.');});});});
-document.getElementById('refresh').addEventListener('click',function(){run(function(){return me().then(function(){show('Сессия действительна.');});});});
-document.getElementById('logout').addEventListener('click',function(){run(function(){return request('logout',{}).then(function(){signedOut();show('Вы вышли.');});});});
-me().then(function(){show('Сессия восстановлена.');}).catch(function(error){if(error.status===401){show('Введите логин и пароль.');}else{show(error.message);}});
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="same-origin"><title>WebVault — вход</title><link rel="stylesheet" href="assets/css/app.css"></head>
+<body><nav id="navigation" aria-label="Навигация"></nav><main><h1>Вход в WebVault</h1><pre id="status" role="status" aria-live="polite"></pre>
+<section><form id="loginForm"><label>Логин<input name="login" required minlength="3" maxlength="64" pattern="[A-Za-z0-9_.-]{3,64}" autocomplete="username"></label><label>Пароль<input name="password" type="password" required maxlength="128" autocomplete="current-password"></label><button type="submit">Войти</button></form></section>
+<details id="setupPanel" hidden><summary>Создать первого администратора</summary><p>После создания выключите AdminSetupEnabled и очистите AdminSetupKey в локальном Web.config.</p><form id="setupForm"><label>Ключ настройки<input name="setupKey" type="password" required maxlength="256" autocomplete="off"></label><label>Логин<input name="login" required minlength="3" maxlength="64" pattern="[A-Za-z0-9_.-]{3,64}" autocomplete="username"></label><label>Имя<input name="displayName" required maxlength="100"></label><label>Пароль — от 15 символов<input name="password" type="password" required minlength="15" maxlength="128" autocomplete="new-password"></label><label>Повтор пароля<input name="confirmPassword" type="password" required minlength="15" maxlength="128" autocomplete="new-password"></label><button type="submit">Создать администратора</button></form></details>
+</main><script src="assets/js/ui.js"></script><script>
+(function(){'use strict';var ui=WebVaultUI;ui.nav(null);var setup=document.getElementById('setupPanel');
+function setupStatus(){return ui.request('api/auth/setup_status.ashx',null).then(function(body){setup.hidden=!body.canSetup;});}
+document.getElementById('loginForm').addEventListener('submit',function(event){event.preventDefault();var form=this;ui.run(function(){return ui.request('api/auth/login.ashx',{login:form.elements.login.value,password:form.elements.password.value}).then(function(){form.elements.password.value='';return ui.me();}).then(function(user){location.replace(ui.home(user));});});});
+document.getElementById('setupForm').addEventListener('submit',function(event){event.preventDefault();var form=this;if(form.elements.password.value!==form.elements.confirmPassword.value){ui.status('Пароли не совпадают.');return;}ui.run(function(){return ui.request('api/auth/setup.ashx',{login:form.elements.login.value,displayName:form.elements.displayName.value,password:form.elements.password.value},{'X-Setup-Key':form.elements.setupKey.value}).then(function(){document.getElementById('loginForm').elements.login.value=form.elements.login.value;form.reset();setup.hidden=true;ui.status('Администратор создан. Выключите настройку и удалите ключ в Web.config, затем войдите.');});});});
+ui.me().then(function(user){location.replace(ui.home(user));}).catch(function(error){if(error.status===401){ui.status('Введите логин и пароль.');setupStatus().catch(function(failure){ui.status('Не удалось проверить первоначальную настройку: '+failure.message);});}else{ui.status(error.message);}});
 }());
 </script></body></html>
