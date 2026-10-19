@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <connectionStrings>
+    <add name="WebVault" connectionString="Server=.\SQLEXPRESS;Database=WebVault;Integrated Security=True;Connect Timeout=5;Application Name=WebVault;" providerName="System.Data.SqlClient" />
+  </connectionStrings>
+  <system.web>
+    <compilation debug="false" targetFramework="4.5" />
+    <httpRuntime targetFramework="4.5" />
+    <customErrors mode="RemoteOnly" />
+    <identity impersonate="false" />
+    <globalization fileEncoding="utf-8" requestEncoding="utf-8" responseEncoding="utf-8" />
+  </system.web>
+</configuration>
