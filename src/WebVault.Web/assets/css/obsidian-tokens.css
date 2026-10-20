@@ -1,0 +1,26 @@
+/* WebVault-owned defaults using Obsidian-compatible variable names. Not Obsidian's stylesheet. */
+body {
+ --font-interface-theme: 'Segoe UI', Arial, sans-serif;
+ --font-text-theme: 'Segoe UI', Arial, sans-serif;
+ --font-monospace-theme: Consolas, 'Courier New', monospace;
+ --font-interface: var(--font-interface-theme); --font-text: var(--font-text-theme); --font-monospace: var(--font-monospace-theme);
+ --font-text-size: 16px; --font-ui-small: 13px; --font-ui-smaller: 12px; --line-height-normal: 1.6; --file-line-width: 700px;
+ --ribbon-width: 44px; --header-height: 40px; --tab-height: 36px; --status-bar-height: 26px;
+ --radius-s: 4px; --radius-m: 8px; --radius-l: 12px; --input-radius: 5px; --input-height: 30px;
+ --interactive-accent: #8b6cef; --interactive-accent-hover: #a18af2; --text-on-accent: #fff; --text-accent: #b39af8;
+}
+body.theme-dark {
+ color-scheme: dark; --background-primary: #1e1e1e; --background-primary-alt: #242424; --background-secondary: #262626; --background-secondary-alt: #202020;
+ --background-modifier-border: #363636; --background-modifier-border-hover: #505050; --background-modifier-border-focus: #8b6cef;
+ --background-modifier-hover: rgba(255,255,255,.055); --background-modifier-active-hover: rgba(139,108,239,.16); --background-modifier-form-field: #202020;
+ --text-normal: #dadada; --text-muted: #a0a0a0; --text-faint: #757575; --text-error: #f28b82; --text-selection: rgba(139,108,239,.3);
+ --interactive-normal: #333; --interactive-hover: #414141; --nav-item-color: var(--text-muted); --nav-item-color-active: var(--text-normal); --nav-item-background-active: var(--background-modifier-active-hover);
+}
+body.theme-light {
+ color-scheme: light; --background-primary: #fff; --background-primary-alt: #fafafa; --background-secondary: #f3f3f3; --background-secondary-alt: #eaeaea;
+ --background-modifier-border: #dedede; --background-modifier-border-hover: #bbb; --background-modifier-border-focus: #7851d6;
+ --background-modifier-hover: rgba(0,0,0,.045); --background-modifier-active-hover: rgba(120,81,214,.12); --background-modifier-form-field: #fff;
+ --text-normal: #292929; --text-muted: #666; --text-faint: #999; --text-error: #b42318; --text-selection: rgba(120,81,214,.2);
+ --interactive-normal: #e9e9e9; --interactive-hover: #ddd; --nav-item-color: var(--text-muted); --nav-item-color-active: var(--text-normal); --nav-item-background-active: var(--background-modifier-active-hover);
+ --text-accent: #7851d6;
+}
