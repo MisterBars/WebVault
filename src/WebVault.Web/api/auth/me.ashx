@@ -1,1 +1,1 @@
-<%@ WebHandler Language="C#" Class="WebVault.AuthHandler" %>
+<%@ WebHandler Language="C#" Class="WebVault.AccountHandler" %>
