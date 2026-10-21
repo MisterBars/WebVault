@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {inspectProperties,propertyChange} from './properties.js';
+const apply=(s,p)=>p?s.slice(0,p.from)+p.insert+s.slice(p.to):s;
+test('types match navigation properties',()=>{const m=inspectProperties('---\ntitle: Test\npriority: 2\nprogress: 0.75\nenabled: true\ncreated: 2026-10-21\ntags:\n  - test\n---\n# Body');assert.equal(m.error,undefined);assert.deepEqual(m.entries.map(e=>e.type),['text','number','number','checkbox','date','tags']);});
+test('only selected scalar changes, comments and body stay',()=>{const s='---\n# keep\ntitle: \"Old\" # inline\npriority: 2\n---\nBody\n';const next=apply(s,propertyChange(s,'priority',3));assert.equal(next,s.replace('priority: 2','priority: 3'));});
+test('block list can change without damaging following field',()=>{const s='---\ntags:\n  - a\n  - b\ntitle: Keep\n---\nBody';const n=apply(s,propertyChange(s,'tags',['x','y']));assert.deepEqual(inspectProperties(n).entries.find(e=>e.key==='tags').value,['x','y']);assert.ok(n.includes('title: Keep'));assert.ok(n.endsWith('---\nBody'));});
+test('complex values and anchors are not rewritten',()=>{const s='---\ncomplex: {a: 1}\nbase: &ref value\ncopy: *ref\n---\nBody';assert.ok(inspectProperties(s).entries.every(e=>e.readonly));assert.throws(()=>propertyChange(s,'complex','x'));});
+test('duplicate keys and unsafe integer are not editable',()=>{assert.ok(inspectProperties('---\na: 1\na: 2\n---').error);assert.ok(inspectProperties('---\na: 9007199254740993\n---').entries[0].readonly);});
+test('unchanged value gives no patch',()=>{assert.equal(propertyChange('---\nenabled: true\n---','enabled',true),null);});
