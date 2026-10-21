@@ -1,0 +1,9 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {extractReferences,createResolver,makeGraph,backlinks} from './note_index.js';
+test('references use markdown tokens, not code examples',()=>{const r=extractReferences('[[A|Alias]] [B](B.md) `[[No]]`\n\n```md\n[[No2]]\n```');assert.deepEqual(r.map(x=>x.target),['A','B.md']);});
+test('percent and html comments hide references',()=>{const r=extractReferences('%% [[No]] %% [[A]] <!-- [[No2]] --> [[B]]');assert.deepEqual(r.map(x=>x.target),['A','B']);});
+test('resolver prefers same folder and does not merge ambiguous basenames',()=>{const r=createResolver(['A.md','x/A.md','x/Source.md','p/B.md','q/B.md']);assert.equal(r('x/Source.md','A').path,'x/A.md');assert.equal(r('x/Source.md','p/B').path,'p/B.md');assert.equal(r('x/Source.md','B').status,'ambiguous');assert.equal(r('x/Source.md','Missing').status,'missing');});
+test('unique basename and encoded names resolve',()=>{const r=createResolver(['notes/Моя заметка.md']);assert.equal(r('Start.md','Моя%20заметка').path,'notes/Моя заметка.md');assert.equal(r('Start.md','https://example.com/a.md','markdown').status,'ignored');assert.equal(r('Start.md','../a.md').status,'invalid');});
+test('graph aggregates repeated links and exposes backlinks',()=>{const g=makeGraph([{path:'A.md',version:'1',refs:[{target:'B',kind:'wiki'},{target:'B',kind:'wiki'},{target:'Missing',kind:'wiki'}]},{path:'B.md',version:'2',refs:[]}]);assert.equal(g.edges.length,2);assert.equal(g.edges.find(e=>e.target==='B.md').count,2);assert.deepEqual(backlinks(g,'B.md'),[{path:'A.md',count:2}]);assert.ok(g.nodes.some(n=>n.status==='missing'));});
+test('frontmatter is not treated as body links in first version',()=>{assert.deepEqual(extractReferences('---\nrelated: "[[No]]"\n---\n\n[[A]]').map(x=>x.target),['A']);});
