@@ -1,60 +1,44 @@
 # Указатель документации WebVault
 
-[Вернуться к README](../README.md). Пометка «этап» означает описание соответствующего изменения, а не гарантию актуальности всех старых ограничений. Старые документы не удалены, чтобы сохранять контекст.
+[README](../README.md). «Этап» — описание соответствующего изменения, не гарантия актуальности всех старых ограничений.
 
-## Установка, сборка и проверка
+## Установка, сборка, проверки
+- [first_install.md](first_install.md) — базовая установка IIS/SQL/DataRoot и первый администратор; список SQL до 05, дополнения 06/07 ниже.
+- [npm_build.md](npm_build.md) — установка зависимостей дома, test/build, lock, перенос JS и ошибки.
+- [cm6_setup.md](cm6_setup.md) — первоначальная интеграция CM; Markdown позже расширен.
+- [deployment.md](deployment.md) — исторический этап; отдельные HTML-страницы устарели, использовать first_install/unified_window.
+- [TEST_CHECKLIST.md](TEST_CHECKLIST.md) — базовый чек-лист, дополнять новыми проверками.
+- [SQL-скрипты](../database/install) — 00–07, при обновлении только неприменённые после бэкапа.
 
-| Документ | Для чего / статус |
-| --- | --- |
-| [first_install.md](first_install.md) | Основная базовая установка IIS/SQL/DataRoot и создание администратора. SQL-перечень в тексте — до 05; этапы 06/07 читать отдельно |
-| [npm_build.md](npm_build.md) | Общая инструкция: Node/npm дома, зависимости, тесты, build, перенос JS и ошибки |
-| [cm6_setup.md](cm6_setup.md) | Первоначальное подключение CM6 и резервного textarea; возможности Markdown обновлены в live_preview_blocks.md |
-| [deployment.md](deployment.md) | Исторический этап развёртывания. Список отдельных HTML-страниц устарел; использовать first_install.md и unified_window.md |
-| [TEST_CHECKLIST.md](TEST_CHECKLIST.md) | Базовый чек-лист; дополнять проверками новых комплектов, не считать автоматически пройденным |
-| [../database/install](../database/install) | SQL-скрипты 00–07. На обновлении — только неприменённые, после бэкапа |
+## Аккаунты
+- [account_security.md](account_security.md) — безопасность, этап 06.
+- [session_policy.md](session_policy.md) — актуализированные сессии и временный пароль; приоритет над старой политикой выхода.
+- [password_change.md](password_change.md) — этап смены пароля, сессии сверять выше.
+- [users.md](users.md) — ранний этап учётных записей.
+- [user_management.md](user_management.md) — управление пользователями; удаление владельца дополняет folders_and_purge.
+- [ui_and_users.md](ui_and_users.md) — ранний UI и пользователи.
 
-## Пользователи и безопасность
+## Файлы и перенос
+- [note_transfer.md](note_transfer.md) — НОВОЕ: импорт нескольких .md, экспорт одной заметки; исходники требуют сборки/проверки. ZIP и папки позже.
+- [file_vault.md](file_vault.md) — этап файлового хранилища.
+- [folders_and_purge.md](folders_and_purge.md) — этап 07, папки и административное удаление владельца; не корзина заметок.
+- [trash_ui.md](trash_ui.md) — корзина, восстановление, ограничения удаления.
+- [multi_selection.md](multi_selection.md) — последующий групповой UI, Ctrl/Shift, drag/прокрутка; Delete/Ctrl+A дерева по отзыву пользователя пока не работают.
 
-| Документ | Для чего / статус |
-| --- | --- |
-| [account_security.md](account_security.md) | Этап безопасности аккаунтов и миграция 06 |
-| [session_policy.md](session_policy.md) | Уточнённые правила временного пароля и сохранения текущей сессии; приоритет над старыми правилами выхода |
-| [password_change.md](password_change.md) | Этап смены пароля; правила отзыва сверять с session_policy.md |
-| [users.md](users.md) | Ранний этап учётных записей |
-| [user_management.md](user_management.md) | Управление пользователями; полное удаление владельца дополняет folders_and_purge.md |
-| [ui_and_users.md](ui_and_users.md) | Ранний UI и пользователи; единую оболочку см. ниже |
+## Редактор
+- [editor_autosave.md](editor_autosave.md) — автосохранение и первоначальный просмотр; Markdown потом заменён при наличии CM.
+- [live_preview_blocks.md](live_preview_blocks.md) — последний блочный просмотр/чтение, границы поддержки.
+- [mode_slider.md](mode_slider.md) — переключатель; описанный старый мост чтения позже заменён в live_preview_blocks.
+- [unified_window.md](unified_window.md) — единое index.html, модальные вход/настройки.
+- [theme_compatibility.md](theme_compatibility.md) — адаптация тем.
 
-## Файлы и корзина
+## Архитектура и план
+- [API_OVERVIEW.md](API_OVERVIEW.md) — обзор API этапа; новые маршруты сверять с кодом.
+- [db_schema.md](db_schema.md) — схема, изменения сверять с SQL.
+- [application_design.md](application_design.md) — проектирование.
+- [project_overview.md](project_overview.md) — ранний снимок; текущее состояние в README.
+- [ТЗ 001](specifications/001-webvault-v0.1.md) — исходные требования.
+- [ТЗ 002](specifications/002-editor-files-and-accounts.md) — редактор/файлы/аккаунты.
+- [next_steps.md](next_steps.md) — согласованные требования, не готовые функции; перенос .md реализуется поэтапно, текущий этап описан в note_transfer.md.
 
-| Документ | Для чего / статус |
-| --- | --- |
-| [file_vault.md](file_vault.md) | Этап файлового хранилища и хранения Markdown |
-| [folders_and_purge.md](folders_and_purge.md) | Папки, этап 07 и административное удаление владельца. Это не инструкция корзины отдельной заметки |
-| [trash_ui.md](trash_ui.md) | Формат/операции корзины, восстановление и пределы безвозвратного удаления |
-| [multi_selection.md](multi_selection.md) | Последующий групповой интерфейс дерева/корзины, Ctrl/Shift, drag и автопрокрутка. Delete/Ctrl+A дерева пока не работают по отзыву пользователя |
-
-Импорт/экспорт пока не реализованы; требования находятся в next_steps.md. Не использовать восстановление всей БД вместо переноса отдельных тестовых заметок.
-
-## Редактор и внешний вид
-
-| Документ | Для чего / статус |
-| --- | --- |
-| [editor_autosave.md](editor_autosave.md) | Автосохранение и первоначальный упрощённый просмотр; Markdown позже заменён при наличии CM bundle |
-| [live_preview_blocks.md](live_preview_blocks.md) | Последняя реализованная основа блочного Live Preview/чтения, границы поддержки, сборка и тесты |
-| [mode_slider.md](mode_slider.md) | Анимированный переключатель режимов; внутренний мост к старому просмотру из этого этапа позже заменён в live_preview_blocks |
-| [unified_window.md](unified_window.md) | Единое index.html с модальными входом/настройками |
-| [theme_compatibility.md](theme_compatibility.md) | Совместимость и адаптация тем |
-
-## Архитектура, требования и план
-
-| Документ | Для чего / статус |
-| --- | --- |
-| [API_OVERVIEW.md](API_OVERVIEW.md) | Обзор API соответствующего этапа; новые маршруты сверять с реализацией |
-| [db_schema.md](db_schema.md) | Описание схемы; изменения сверять с миграциями |
-| [application_design.md](application_design.md) | Проектирование приложения |
-| [project_overview.md](project_overview.md) | Снимок более раннего этапа; текущие функции смотреть в README и инструкциях последних комплектов |
-| [specifications/001-webvault-v0.1.md](specifications/001-webvault-v0.1.md) | Первоначальное ТЗ v0.1 |
-| [specifications/002-editor-files-and-accounts.md](specifications/002-editor-files-and-accounts.md) | Следующее ТЗ: редактор, файлы и аккаунты |
-| [next_steps.md](next_steps.md) | Последние согласованные уточнения. План, не готовые функции |
-
-При новом документе добавить сюда ссылку и краткое назначение. Если инструкция содержит старые маршруты/политику, явно указать заменяющий документ.
+Новый документ добавлять сюда с кратким назначением; старую политику/маршруты помечать заменяющими инструкциями.

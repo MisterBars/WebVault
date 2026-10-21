@@ -1,3 +1,4 @@
+import './transfer.js';
 export function installModeSlider(change){
 const actions=document.querySelector('#notesPane .view-actions');
 const style=document.createElement('style');style.textContent=`
