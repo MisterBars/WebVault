@@ -51,3 +51,7 @@
 - [Правила changelog](changelog/README.md), [октябрь 2026](changelog/2026-10.md), [архив прежнего README](changelog/archive/README_2026-10-22.txt).
 - [theme_contract.md](theme_contract.md) — актуальная карта реальных DOM/CSS/токенов; исторические уточнения theme_compatibility.md сохранены.
 README теперь краткое текущее состояние и навигация. Подробный дневник патчей в него больше не добавлять. Старые задачи/инструкции этим разделением не удаляются.
+
+
+## Дополнение 22.10.2026: исходная нумерация
+- [editor_gutters.md](editor_gutters.md) — положение gutter у левого края, реальный DOM/CSS-контракт, измерения и ограничения; не folding в reading.
