@@ -61,3 +61,13 @@
 ## Разделы заголовков — кандидат headings-fold-11
 .wv-heading-fold-host у реального h1–h6 имеет position:relative; button.wv-heading-fold-button[aria-expanded] позиционируется слева через --wv-heading-fold-offset (fallback -24px), не меняя высоту заголовка. SVG currentColor поворачивается при закрытом разделе; aria-label/title описывают действие. Палитра: text-muted/normal, background-modifier-hover, interactive-accent, radius-s; style id wv-heading-fold-style. data-wv-heading-fold содержит текущую позицию, не постоянный идентификатор заметки; data-wv-view-only исключает эту кнопку из форсирующего click-save gate.
 Состояния collapse в EditorState и source-узел WVFrontmatter относятся к поведению, а не к CSS-теме. YAML-стрелки исключаются моделью source, не глобальным скрытием fold gutter. Полная совместимость внешних тем, а также сворачивание отрисованных списков/кода/таблиц этим не заявлены. См. [heading_folding.md](heading_folding.md).
+
+
+## Выделение и типографика — кандидат note-theme-12
+Реальный root-класс .cm-editor.wv-themed-editor, style id wv-note-appearance-style. Подсветка использует стабильные wv-md-heading / wv-md-h1..h6 / wv-md-formatting/em/strong/strike/link/url/code/quote/list и wv-syntax-comment/meta/keyword/string/number/name/operator/punctuation/invalid; случайные CM hash-классы не являются контрактом адаптера. Selection классы CM остаются штатными, им задаются семантические роли.
+Токены WebVault --wv-ui-font/note-font/editor-font/code-font/code-size, --wv-selection-background/text, --wv-markup-color/weight, --wv-active-line-background определены defaults в раннем obsidian-tokens.css и зависят от стандартных theme-переменных. NOTE_CSS не подставляет всю Minimal и не трогает geometry gutter/scroll/folding. Заголовки тела стилизуются отдельно от h3 интерфейса свойств. Подробности — [note_appearance.md](note_appearance.md), план импорта — [theme_adapter.md](theme_adapter.md), конкретный аудит — [Minimal 8.1.7](themes/minimal-8.1.7.md).
+
+
+## Уточнение 12b: фон токенов и переносы
+CM selection рисуется ниже текста: непрозрачный background у wv-md-code недопустим для подсветки самих исходных символов. В 12b он transparent, в HTML reading/live-rendered CODE/PRE фон --code-background сохраняется. Будущий адаптер должен различать фон поверхности/слоя и фон inline декорации; opaque/e-ink остаётся отдельной задачей. Цвет --text-selection не меняется этим исправлением.
+Один исходный softbreak выводится как настоящий BR, не зависящий от white-space:normal; тема не должна молча скрывать семантический BR. Это политика отображения WebVault, не добавление пробелов/новых строк в Markdown-файл и не изменение code fence LF.

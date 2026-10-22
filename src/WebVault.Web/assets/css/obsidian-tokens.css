@@ -24,3 +24,21 @@ body.theme-light {
  --interactive-normal: #e9e9e9; --interactive-hover: #ddd; --nav-item-color: var(--text-muted); --nav-item-color-active: var(--text-normal); --nav-item-background-active: var(--background-modifier-active-hover);
  --text-accent: #7851d6;
 }
+
+
+/* note-theme-12: WebVault semantic roles; loaded before adapted theme styles. */
+body {
+ --text-formatting: var(--text-muted);
+ --wv-note-font: var(--font-text, var(--font-text-theme, sans-serif));
+ --wv-editor-font: var(--font-editor, var(--font-text, var(--font-text-theme, sans-serif)));
+ --wv-ui-font: var(--font-interface, var(--font-interface-theme, sans-serif));
+ --wv-code-font: var(--font-monospace, var(--font-monospace-theme, monospace));
+ --wv-code-size: var(--code-size, var(--font-code, 0.9em));
+ --wv-note-weight: 400;
+ --wv-ui-heading-weight: var(--font-bold, 600);
+ --wv-selection-background: var(--text-selection);
+ --wv-selection-text: var(--text-normal);
+ --wv-markup-color: var(--text-formatting, var(--text-muted));
+ --wv-markup-weight: 400;
+ --wv-active-line-background: var(--background-modifier-hover);
+}

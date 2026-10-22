@@ -1,0 +1,84 @@
+{
+  "format": "webvault-theme-audit-v1",
+  "source": {
+    "theme": "Minimal",
+    "version": "8.1.7",
+    "minObsidianAppVersion": "1.9.0",
+    "author": "@kepano",
+    "decodedCssUtf8Sha256": "ee4610bc2aec92a491e3b66fc3c6e854ddcdd3be91abb9f9aa0870f6adbdfaf8",
+    "decodedCssCharacters": 248290,
+    "decodedCssUtf8Bytes": 248304
+  },
+  "analysis": {
+    "qualifiedRulesIncludingNested": 978,
+    "uniqueCustomPropertyNames": 412,
+    "cssParseErrors": 0,
+    "atRules": {
+      "media": 11
+    },
+    "urlSchemes": {
+      "data": 27
+    },
+    "selectorsUsingHas": 16,
+    "declarationsUsingColorMix": 1,
+    "importantDeclarations": 56
+  },
+  "compatibility": {
+    "runtimeStatus": "audit-only; raw CSS not loaded",
+    "variables": "semantic role bridge prepared by note-theme-12",
+    "selection": "text-selection -> wv-selection-background; opaque/e-ink variants require foreground/multiselection testing",
+    "fonts": "font-editor/font-text/font-interface/font-monospace have separate roles; font-code is a size, not a family",
+    "selectors": "HyperMD/cm-s-obsidian/cm-formatting require explicit mapping to real WebVault nodes",
+    "layout": "gutter/sizer/scroll rules blocked until separately adapted",
+    "browser": "Firefox113 profile must exclude or transform has selectors; color-mix baseline supported, concrete expressions need capability checks",
+    "plugins": "Minimal Theme Settings/Hider/Style Settings behaviours not executed",
+    "assets": "27 data URLs, no import/font-face in provided CSS; no theme assets loaded by this kit"
+  },
+  "roleMap": [
+    {
+      "source": "--text-selection",
+      "target": "--wv-selection-background",
+      "kind": "color"
+    },
+    {
+      "source": "--text-formatting",
+      "target": "--wv-markup-color",
+      "kind": "color"
+    },
+    {
+      "source": "--font-editor",
+      "target": "--wv-editor-font",
+      "kind": "fontFamily"
+    },
+    {
+      "source": "--font-text",
+      "target": "--wv-note-font",
+      "kind": "fontFamily"
+    },
+    {
+      "source": "--font-interface",
+      "target": "--wv-ui-font",
+      "kind": "fontFamily"
+    },
+    {
+      "source": "--font-monospace",
+      "target": "--wv-code-font",
+      "kind": "fontFamily"
+    },
+    {
+      "source": "--font-code",
+      "target": "--wv-code-size",
+      "kind": "fontSize"
+    },
+    {
+      "source": "--h1-size .. --h6-size",
+      "target": "rendered headings and wv-md-h1 .. wv-md-h6",
+      "kind": "fontSize"
+    }
+  ],
+  "licensing": {
+    "header": "MIT in supplied CSS; copyright 2020-2024 Steph Ango (@kepano)",
+    "rawThemeRedistributed": false,
+    "futureExport": "preserve applicable copyright/license when distributing source or adaptations"
+  }
+}

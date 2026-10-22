@@ -59,3 +59,9 @@ README теперь краткое текущее состояние и нави
 
 ## Дополнение 22.10.2026: разделы заголовков
 - [heading_folding.md](heading_folding.md) — сворачивание разделов dynamic/reading/source, исключение YAML из source fold, view-only состояние и ограничения первого этапа.
+
+
+## Дополнение 22.10.2026: текст и совместимость тем
+- [note_appearance.md](note_appearance.md) — CM/DOM selection, синтаксис и шрифтовые роли, диагностика/проверки.
+- [theme_adapter.md](theme_adapter.md) — реализованная основа и границы будущего адаптера.
+- [Minimal 8.1.7](themes/minimal-8.1.7.md), [машинный аудит](themes/minimal-8.1.7.audit.json) — разбор пользовательского CSS, не установленная тема.
