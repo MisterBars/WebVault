@@ -1,6 +1,6 @@
 import {basicSetup} from 'codemirror';
 import {EditorState,Compartment,StateField,StateEffect,Transaction} from '@codemirror/state';
-import {EditorView,Decoration,WidgetType} from '@codemirror/view';
+import {EditorView,Decoration,WidgetType,GutterMarker,lineNumberWidgetMarker} from '@codemirror/view';
 import {markdown} from '@codemirror/lang-markdown';
 import {installModeSlider} from './mode_slider.js';
 import {parseDocument,renderTokens,renderDocument,installMarkdownStyle} from './markdown_renderer.js';
@@ -17,12 +17,41 @@ function blocks(state){const data=parseDocument(state.doc.toString());return dat
 const parsed=StateField.define({create:blocks,update:(v,tr)=>tr.docChanged?blocks(tr.state):v});
 class PropertiesWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const expected=editor.state.doc,user=app.state.user&&app.state.user.id,path=app.state.note;return createPropertiesPanel(expected.toString(),{readOnly:false,onCommit:change=>{if(currentMode!==1||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.note!==path||editor.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');editor.dispatch({changes:change,annotations:Transaction.userEvent.of('input.properties')});},restoreFocus:key=>{const control=Array.from(editor.dom.querySelectorAll('[data-wv-property]')).find(n=>n.dataset.wvProperty===key&&!n.disabled);if(control)control.focus();}});}ignoreEvent(){return true;}}
 class BlockWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const dom=renderTokens(this.block.tokens,openNote);dom.contentEditable='false';dom.addEventListener('mousedown',e=>{if(e.button!==0||e.target.closest('summary'))return;if((e.ctrlKey||e.metaKey)&&e.target.closest('a'))return;e.preventDefault();if(area.disabled)return;editor.dispatch({selection:{anchor:this.block.from},scrollIntoView:true});editor.focus();});return dom;}ignoreEvent(){return true;}}
-function decorate(state){if(!state.field(live))return Decoration.none;const result=[];for(const b of state.field(parsed)){const active=state.selection.ranges.some(r=>r.empty?r.head>=b.from&&r.head<=b.to:r.from<=b.to&&r.to>=b.from);if(b.properties||!active)result.push(Decoration.replace({widget:b.properties?new PropertiesWidget(b):new BlockWidget(b),block:true,inclusive:false}).range(b.from,b.to));}return Decoration.set(result,true);}
+class SourceBlockNumber extends GutterMarker {
+  constructor(number) {
+    super();
+    this.number = number;
+  }
+
+  eq(other) {
+    return other instanceof SourceBlockNumber &&
+      other.number === this.number;
+  }
+
+  toDOM() {
+    return document.createTextNode(String(this.number));
+  }
+}
+
+const sourceBlockNumbers = lineNumberWidgetMarker.of(
+  (editor, widget, block) => {
+    if (!(widget instanceof BlockWidget) &&
+        !(widget instanceof PropertiesWidget)) {
+      return null;
+    }
+
+    return new SourceBlockNumber(
+      editor.state.doc.lineAt(block.from).number
+    );
+  }
+);
+function decorate(state){if(!state.field(live))return Decoration.none;const result=[];for(const b of state.field(parsed)){const active=state.selection.ranges.some(r=>r.empty?r.head>=b.from&&r.head<=b.to:r.from<=b.to&&r.to>=b.from);if(b.properties||!active)result.push(Decoration.replace({widget:b.properties?new PropertiesWidget(b):new BlockWidget(b),block:true,inclusive:true}).range(b.from,b.to));}return Decoration.set(result,true);}
 const decorations=StateField.define({create:decorate,update:(v,tr)=>tr.docChanged||tr.selection||tr.effects.some(e=>e.is(modeEffect))?decorate(tr.state):v,provide:f=>EditorView.decorations.from(f)});
-const theme=EditorView.theme({'&':{color:'var(--text-normal)',backgroundColor:'var(--background-primary)',fontSize:'var(--font-text-size,16px)'},'.cm-content':{fontFamily:'var(--font-text,sans-serif)',minHeight:'300px'},'.cm-scroller':{overflow:'auto'},'.cm-cursor':{borderLeftColor:'var(--text-normal)'},'.cm-gutters':{backgroundColor:'var(--background-secondary)',color:'var(--text-muted)'}});
+const theme=EditorView.theme({'&':{color:'var(--text-normal)',backgroundColor:'var(--background-primary)',fontSize:'var(--font-text-size,16px)'},'.cm-content':{fontFamily:'var(--font-text,sans-serif)',minHeight:'300px'},'.cm-content .wv-render':{paddingTop:'0',paddingBottom:'0'},'.cm-scroller':{overflow:'auto'},'.cm-cursor':{borderLeftColor:'var(--text-normal)'},'.cm-gutters':{backgroundColor:'var(--background-secondary)',color:'var(--text-muted)'}});
 function permission(){return [EditorState.readOnly.of(area.disabled||area.readOnly),EditorView.editable.of(!area.disabled&&!area.readOnly)];}function renderReading(){reading.textContent='';if(app.state.user&&!app.state.user.isAdmin&&!app.state.user.mustChangePassword&&app.state.note){const text=view.state.doc.toString(),dom=renderDocument(text,openNote);if(findFrontmatter(text)&&dom.firstElementChild&&dom.firstElementChild.tagName==='DETAILS')dom.firstElementChild.replaceWith(createPropertiesPanel(text,{readOnly:true}));reading.appendChild(dom);}}
-function extensions(){return [basicSetup,markdown(),live,parsed,decorations,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const p=v.state.field(parsed).find(b=>b.properties);return p?Decoration.set([Decoration.replace({}).range(p.from,p.to)]):Decoration.none;}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));}})];}
+function extensions(){return [basicSetup,markdown(),live,parsed,decorations,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const p=v.state.field(parsed).find(b=>b.properties);return p?Decoration.set([Decoration.replace({}).range(p.from,p.to)]):Decoration.none;}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));}})];}
 function stateFor(text){const p=findFrontmatter(text);return EditorState.create({doc:text,selection:{anchor:currentMode===1&&p?p.end:0},extensions:extensions()});}view=new EditorView({state:stateFor(nativeValue.get.call(area)),parent:host});
 Object.defineProperty(area,'value',{configurable:true,get(){return view.state.doc.toString();},set(v){nativeValue.set.call(area,v);view.setState(stateFor(nativeValue.get.call(area)));if(currentMode===2)renderReading();}});
 for(const [name,descriptor] of [['disabled',nativeDisabled],['readOnly',nativeReadOnly]])Object.defineProperty(area,name,{configurable:true,get(){return descriptor.get.call(area);},set(v){descriptor.set.call(area,v);view.dispatch({effects:access.reconfigure(permission())});}});Object.defineProperty(area,'hidden',{configurable:true,get(){return nativeHidden.get.call(area);},set(v){nativeHidden.set.call(area,v);host.hidden=!!v;}});area.focus=()=>view.focus();area.style.display='none';
 const modes=installModeSlider(i=>{currentMode=i;area.hidden=i===2;reading.hidden=i!==2;const p=i===1?findFrontmatter(view.state.doc.toString()):null;view.dispatch({effects:modeEffect.of(i===1),...(p&&view.state.selection.main.empty&&view.state.selection.main.head<p.end?{selection:{anchor:p.end}}:{})});if(i===2)renderReading();return true;});new MutationObserver(()=>{if(!app.state.user||app.state.user.isAdmin||app.state.user.mustChangePassword)reading.textContent='';}).observe(document.getElementById('identity'),{childList:true,subtree:true,characterData:true});window.WebVaultCM6={view,modes};app.el('saveNote').hidden=true;app.el('reloadNote').hidden=true;installIndexHooks();installGraph();installTrashRibbon();
+window.__WV_LAYOUT_TEST = 'layout-padding0-widgetnumbers-02';
