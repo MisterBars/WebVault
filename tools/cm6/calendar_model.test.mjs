@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {leapYear,daysInMonth,parseDate,dateISO,addDays,shiftMonth,monthGrid,parseCalendarValue,composeCalendarValue,localNow} from './calendar_model.js';
+test('Gregorian leap year rules',()=>{assert.equal(leapYear(2000),true);assert.equal(leapYear(1900),false);assert.equal(daysInMonth(2024,2),29);assert.equal(daysInMonth(2026,2),28);});
+test('invalid civil dates rejected rather than rolled over',()=>{for(const v of ['2026-02-30','2025-02-29','2026-13-01','2026-00-10','2026-01-00','26-01-01'])assert.throws(()=>parseDate(v));});
+test('date arithmetic crosses DST and year boundaries as civil dates',()=>{assert.equal(addDays('2026-03-29',1),'2026-03-30');assert.equal(addDays('2026-12-31',1),'2027-01-01');assert.equal(addDays('2024-03-01',-1),'2024-02-29');});
+test('month navigation clamps end of month',()=>{assert.equal(shiftMonth('2026-01-31',1),'2026-02-28');assert.equal(shiftMonth('2024-01-31',1),'2024-02-29');assert.equal(shiftMonth('2026-01-31',-1),'2025-12-31');});
+test('grid has 42 cells and begins Monday',()=>{const grid=monthGrid('2026-10-01');assert.equal(grid.length,42);assert.equal(grid[0],'2026-09-28');assert.equal(grid[3],'2026-10-01');});
+test('year bounds and year below 100 are explicit, not 1900-adjusted',()=>{assert.equal(addDays('0099-12-31',1),'0100-01-01');assert.equal(addDays('0000-01-01',-1),null);assert.equal(addDays('9999-12-31',1),null);assert.equal(shiftMonth('0000-01-01',-1),null);assert.throws(()=>dateISO({year:2026,month:1,day:1.5}));});
+test('date selection keeps nonzero time and seconds exactly',()=>{const p=parseCalendarValue('2026-10-22T12:30:45','datetime');assert.equal(composeCalendarValue('2026-11-03','datetime',p.hour,p.minute,p.second,p.seconds),'2026-11-03T12:30:45');});
+test('minute precision is not silently expanded to seconds',()=>{const p=parseCalendarValue('2026-10-22T12:30','datetime');assert.equal(composeCalendarValue('2026-11-03','datetime',p.hour,p.minute,p.second,p.seconds),'2026-11-03T12:30');});
+test('invalid time and timezone conversion are refused',()=>{for(const v of ['2026-10-22T24:00','2026-10-22T12:60','2026-10-22T12:30:60','2026-10-22T12:30Z'])assert.throws(()=>parseCalendarValue(v,'datetime'));assert.throws(()=>composeCalendarValue('2026-10-22','datetime','','30','0',false));});
+test('today/now use local calendar fields',()=>{const p=localNow(new Date(2026,9,22,23,59,58));assert.deepEqual(p,{date:'2026-10-22',hour:23,minute:59,second:58,seconds:true});});

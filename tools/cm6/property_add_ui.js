@@ -1,3 +1,4 @@
+import {attachCalendar,installCalendarStyle} from './calendar_ui.js';
 import {PROPERTY_TYPES,TYPE_LABELS,TYPE_ICONS,STANDARD_PROPERTIES,propertyNameHints,normalisePropertyName} from './property_add_model.js';
 export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggestions,restoreFocus}) {
   if(readOnly)return;
@@ -18,8 +19,9 @@ export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggesti
     const typeLabel=document.createElement('label');typeLabel.textContent='Начальный тип';
     const type=document.createElement('select');type.setAttribute('aria-label','Тип нового свойства');
     for(const key of PROPERTY_TYPES){const option=document.createElement('option');option.value=key;option.textContent=TYPE_ICONS[key]+' '+TYPE_LABELS[key];type.appendChild(option);}
-    const valueLabel=document.createElement('label');valueLabel.textContent='Начальное значение';
-    const value=document.createElement('input');value.setAttribute('aria-label','Начальное значение');
+    const valueLabel=document.createElement('div');valueLabel.className='wv-property-add-value';
+    const valueCaption=document.createElement('label');valueCaption.textContent='Начальное значение';
+    const value=document.createElement('input');value.setAttribute('aria-label','Начальное значение');value.id='wv-new-property-value-'+Math.random().toString(36).slice(2);valueCaption.htmlFor=value.id;valueLabel.appendChild(valueCaption);
     const status=document.createElement('div');status.className='wv-property-add-status';status.setAttribute('role','status');
     const actions=document.createElement('div');actions.className='wv-property-add-actions';
     const submit=document.createElement('button');submit.type='submit';submit.textContent='Добавить';
@@ -28,15 +30,18 @@ export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggesti
     form.append(nameLabel,typeLabel,valueLabel,status,actions);root.appendChild(form);
     let known=[],options=[],active=-1,loading=false,disposed=false;
     const existing=entries.map(e=>e.key);
+    let calendar=null;
     function hide(){menu.hidden=true;name.setAttribute('aria-expanded','false');name.removeAttribute('aria-activedescendant');name.removeAttribute('aria-controls');active=-1;}
-    function discard(){disposed=true;form.remove();form=null;button.hidden=false;button.focus({preventScroll:true});}
+    function discard(){disposed=true;if(calendar){calendar.destroy();calendar=null;}form.remove();form=null;button.hidden=false;button.focus({preventScroll:true});}
     function configure(){
+      if(calendar){calendar.destroy();calendar=null;}
       value.value='';value.checked=false;value.required=false;value.step='any';
       value.type=type.value==='checkbox'?'checkbox':type.value==='date'?'date':type.value==='datetime'?'datetime-local':type.value==='number'?'number':'text';
       value.required=['date','datetime','number'].includes(type.value);
       if(type.value==='number')value.value='0';
       value.placeholder=type.value==='list'?'Первое значение (необязательно)':'';
       valueLabel.firstChild.textContent=type.value==='list'?'Первое значение (необязательно)':'Начальное значение';
+      if(['date','datetime'].includes(type.value))calendar=attachCalendar(value,{kind:type.value,commit:false,onError:message=>{status.textContent=message;}});
     }
     function applyTypeHint(){
       const key=name.value.trim().toLowerCase();
@@ -105,6 +110,7 @@ export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggesti
   });
 }
 export function installPropertyAdderStyle(){
+ installCalendarStyle();
  if(document.getElementById('wv-property-add-style'))return;
  const style=document.createElement('style');style.id='wv-property-add-style';
  style.textContent=`

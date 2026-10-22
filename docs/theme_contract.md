@@ -1,6 +1,6 @@
 # Актуальный контракт оформления WebVault
 
-Срез: принятый UI до `bcfe626`, 22.10.2026. [Исторические уточнения](theme_compatibility.md) · [Changelog](../CHANGELOG.md).
+Срез: принятая база до `bcfe626`; дополнение `calendar-09` принято пользователем. 22.10.2026. [Исторические уточнения](theme_compatibility.md) · [Changelog](../CHANGELOG.md).
 
 Это карта реальных элементов и точек адаптации, а не обещание полного совпадения DOM/CSS Obsidian. Старые разделы исторического документа, где CM/reading ещё отсутствуют, не описывают текущее состояние.
 
@@ -25,7 +25,7 @@
 | Добавление поля | .wv-property-add-button, .wv-property-add-form, .wv-property-name-picker, .wv-property-name-menu, .wv-property-name-option[aria-selected=true], .wv-property-type-icon, .wv-property-add-status, .wv-property-add-actions | [property_add_ui.js](../tools/cm6/property_add_ui.js) |
 | Преобразование типа | button.wv-property-type-button[aria-expanded], .wv-property-type-panel[role=dialog], .wv-property-type-before, .wv-property-type-after, .wv-property-type-message, .wv-property-type-actions; disabled для защищённых значений | [property_type_ui.js](../tools/cm6/property_type_ui.js) |
 | Общая история заметки | .wv-note-history-actions[role=group] в .view-actions; button.wv-note-history-button, svg.wv-note-history-icon, .wv-note-history-label, [data-wv-history=undo/redo], disabled/focus-visible | [note_history_controls.js](../tools/cm6/note_history_controls.js), [property_history.js](../tools/cm6/property_history.js) |
-| Даты сейчас | Системные input date/datetime-local. Оформление поля доступно теме; системный popup календаря пока не является нашим DOM | [properties_ui.js](../tools/cm6/properties_ui.js), [property_add_ui.js](../tools/cm6/property_add_ui.js) |
+| Даты (calendar-09, принят) | .wv-date-field, .wv-date-input, .wv-date-trigger; .wv-calendar[role=dialog] в body, .wv-calendar-header/jump/grid/week/day/time/preview/message/actions; aria-selected, is-today, is-outside-month, disabled/focus-visible | [calendar_ui.js](../tools/cm6/calendar_ui.js), [calendar_model.js](../tools/cm6/calendar_model.js) |
 
 ## Переменные и ограничения
 
@@ -45,4 +45,10 @@
 - Удалённые/сохранённые compatibility-селекторы и существенные изменения в changelog.
 - Отдельно: что реализовано и принято, что ещё планируется. Не обещать полную совместимость темы без проверки конкретной темы.
 
-Тематический календарь, менеджер тем и настройки сторонних плагинов остаются задачами; фиктивные DOM-классы календаря заранее не назначаются. Актуальная очередь — [next_steps](next_steps.md).
+Тематический календарь calendar-09 добавлен как локальный кандидат с реальными DOM-классами ниже. Менеджер тем и настройки сторонних плагинов остаются задачами. Актуальная очередь — [next_steps](next_steps.md).
+
+
+## Календарь calendar-09 — текущий кандидат
+Собственные реальные классы: .wv-date-field, input.wv-date-input, button.wv-date-trigger; section.wv-calendar[role=dialog] в body; .wv-calendar-header, .wv-calendar-nav, .wv-calendar-jump, .wv-calendar-grid, .wv-calendar-week, .wv-calendar-weekday, .wv-calendar-day[aria-selected=true], .is-today, .is-outside-month, .wv-calendar-time, .wv-calendar-preview, .wv-calendar-message[role=status], .wv-calendar-actions, .wv-calendar-apply; .wv-property-add-value для поля создания. Style id wv-calendar-style. Trigger имеет aria-haspopup/expanded/controls, gridcell — roving tabindex и aria-selected/current, dialog — имя и Escape/Tab-навигацию.
+
+Токены: background-primary, background-modifier-border/form-field/box-shadow, interactive-normal/hover/accent, text-normal/muted/faint/error/on-accent, font-ui-small/font-interface, radius-m, input-radius. Собственный --wv-calendar-background по умолчанию берёт background-primary; тень имеет запасное rgba. Все SVG локальные, currentColor; нет CDN/внешних шрифтов. Это не полная реализация менеджера тем и не обещание совпадения пикселей с Obsidian. Статус кандидата не равен браузерной приёмке.

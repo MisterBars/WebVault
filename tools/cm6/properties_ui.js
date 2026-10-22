@@ -1,3 +1,4 @@
+import {attachCalendar,installCalendarStyle} from './calendar_ui.js';
 import {appendPropertyHistory} from './property_history.js';
 import {attachPropertyTypeControl,installPropertyTypeStyle} from './property_type_ui.js';
 import {appendPropertyAdder,installPropertyAdderStyle} from './property_add_ui.js';
@@ -216,12 +217,14 @@ export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote
       }
     });
     cell.append(input, error);
+    if(['date','datetime'].includes(entry.type))attachCalendar(input,{kind:entry.type,onError:message=>{error.textContent=message;}});
   }
   appendPropertyAdder(root,{entries:model.entries,readOnly,getNameSuggestions,restoreFocus,onAdd:(key,type,draft)=>{if(!onCommit)throw new Error('Редактирование недоступно.');onCommit(propertyAddChange(text,key,type,draft));}});
   return root;
 }
 
 export function installPanelStyle() {
+  installCalendarStyle();
   installPropertyTypeStyle();
   installPropertyAdderStyle();
   installSuggestionStyle();
