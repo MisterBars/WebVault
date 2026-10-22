@@ -1,3 +1,4 @@
+import {appendNoteHistoryButtons,historyButtonState,installNoteHistoryStyle} from './note_history_controls.js';
 import {Transaction} from '@codemirror/state';
 import {undo,redo,undoDepth,redoDepth,isolateHistory} from '@codemirror/commands';
 import {historyShortcut,isPropertyDraft,mayUseDocumentHistory} from './property_history_policy.js';
@@ -25,15 +26,9 @@ export function installPropertyHistory({getView,getMode,area,reading,app,getEntr
   return {...depths,mode:getMode(),writable,blockedByDraft,canUndo:writable&&!blockedByDraft&&depths.undoDepth>0,canRedo:writable&&!blockedByDraft&&depths.redoDepth>0};
  }
  function refresh(){
-  for(const root of scope().querySelectorAll('.wv-properties')){
-   if(!root.querySelector('[data-wv-history]')){
-    const heading=root.querySelector('h3');
-    if(heading){if(heading.parentElement===root)heading.remove();else heading.parentElement.remove();appendPropertyHistory(root,heading,forCurrentNote());root.prepend(root.lastElementChild);}
-   }
-  }
   for(const button of noteRoot.querySelectorAll('[data-wv-history]')){
    const controller=button.wvHistoryController;if(!controller)continue;
-   const s=controller.status();button.disabled=button.dataset.wvHistory==='undo'?!s.canUndo:!s.canRedo;
+   const state=historyButtonState(button.dataset.wvHistory,controller.status());button.disabled=state.disabled;button.title=state.title;
   }
  }
  function act(direction,owner=identity()){
@@ -69,34 +64,20 @@ export function installPropertyHistory({getView,getMode,area,reading,app,getEntr
   if(!s.writable||s.blockedByDraft)return;
   event.preventDefault();event.stopImmediatePropagation();act(direction);
  },true);
+ const historyHost=noteRoot.querySelector('.view-actions');
+ if(historyHost)appendNoteHistoryButtons(historyHost,{status:()=>status(),undo:()=>act('undo'),redo:()=>act('redo')});
+ else app.message('Не найдена верхняя панель для кнопок истории заметки.');
+ let refreshPending=false;
+ function scheduleRefresh(){if(refreshPending)return;refreshPending=true;queueMicrotask(()=>{refreshPending=false;refresh();});}
+ for(const type of ['input','change','keyup','focusin'])noteRoot.addEventListener(type,scheduleRefresh,true);
+ refresh();
+ window.__WV_HISTORY_UI_TEST='history-toolbar-07';
  window.WebVaultHistory={undo:()=>act('undo'),redo:()=>act('redo'),status:()=>status()};
  return {forCurrentNote,refresh};
 }
 export function appendPropertyHistory(root,heading,history){
- const header=document.createElement('div');header.className='wv-property-header';header.appendChild(heading);
- if(history){
-  const actions=document.createElement('div');actions.className='wv-property-history-actions';
-  for(const [direction,label,glyph] of [['undo','Отменить изменение заметки (Ctrl+Z)','↶'],['redo','Повторить изменение заметки (Ctrl+Y)','↷']]){
-   const button=document.createElement('button');button.type='button';button.className='wv-property-history-button';button.dataset.wvHistory=direction;button.wvHistoryController=history;button.title=label;button.setAttribute('aria-label',label);button.textContent=glyph;
-   const s=history.status();button.disabled=direction==='undo'?!s.canUndo:!s.canRedo;
-   button.addEventListener('mousedown',e=>e.preventDefault());
-   button.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();history[direction]();});actions.appendChild(button);
-  }
-  header.appendChild(actions);
- }
- root.appendChild(header);
+ const header=document.createElement('div');header.className='wv-property-header';header.appendChild(heading);root.appendChild(header);
  installPropertyHistoryStyle();
 }
-function installPropertyHistoryStyle(){
- if(document.getElementById('wv-property-history-style'))return;
- const style=document.createElement('style');style.id='wv-property-history-style';
- style.textContent=`
-.wv-properties-v2 .wv-property-header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
-.wv-properties-v2 .wv-property-header h3{margin:0}
-.wv-property-history-actions{display:flex;gap:4px}
-.wv-property-history-button{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;min-height:0;padding:0;border:0;border-radius:var(--radius-s,4px);background:transparent;color:var(--text-muted);font:inherit;font-size:18px}
-.wv-property-history-button:hover{background:var(--background-modifier-hover);color:var(--text-normal)}
-.wv-property-history-button:disabled{opacity:.4;cursor:default}
-`;
- document.head.appendChild(style);
-}
+
+function installPropertyHistoryStyle(){installNoteHistoryStyle();}
