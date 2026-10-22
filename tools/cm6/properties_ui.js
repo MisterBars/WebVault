@@ -1,3 +1,4 @@
+import {appendPropertyAdder,installPropertyAdderStyle} from './property_add_ui.js';
 import {attachPropertySuggestions,installSuggestionStyle} from './property_suggestions_ui.js';
 export function parsePropertyWikiLink(value) {
   const match = /^\[\[([^\]\r\n]+)\]\]$/.exec(value.trim());
@@ -16,7 +17,7 @@ export function appendListValue(values, draft) {
   return values.includes(value) ? values.slice() : [...values, value];
 }
 
-export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote, getSuggestions}={}, {inspectProperties, propertyChange}) {
+export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote, getSuggestions, getNameSuggestions}={}, {inspectProperties, propertyChange, propertyAddChange}) {
   const model = inspectProperties(text);
   const root = document.createElement('section');
   root.className = 'wv-properties wv-properties-v2';
@@ -32,7 +33,7 @@ export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote
   }
   if (!model.entries.length) {
     const empty = document.createElement('p');
-    empty.textContent = 'Свойств нет. Добавление появится в следующем комплекте; пока используйте исходник.';
+    empty.textContent = 'Свойств пока нет. Можно добавить новое поле ниже.';
     root.appendChild(empty);
   }
   for (const entry of model.entries) {
@@ -209,10 +210,12 @@ export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote
     });
     cell.append(input, error);
   }
+  appendPropertyAdder(root,{entries:model.entries,readOnly,getNameSuggestions,restoreFocus,onAdd:(key,type,draft)=>{if(!onCommit)throw new Error('Редактирование недоступно.');onCommit(propertyAddChange(text,key,type,draft));}});
   return root;
 }
 
 export function installPanelStyle() {
+  installPropertyAdderStyle();
   installSuggestionStyle();
   if (document.getElementById('wv-properties-v2-style')) return;
   const style = document.createElement('style');
