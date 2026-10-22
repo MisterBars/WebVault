@@ -55,3 +55,7 @@ README теперь краткое текущее состояние и нави
 
 ## Дополнение 22.10.2026: исходная нумерация
 - [editor_gutters.md](editor_gutters.md) — положение gutter у левого края, реальный DOM/CSS-контракт, измерения и ограничения; не folding в reading.
+
+
+## Дополнение 22.10.2026: разделы заголовков
+- [heading_folding.md](heading_folding.md) — сворачивание разделов dynamic/reading/source, исключение YAML из source fold, view-only состояние и ограничения первого этапа.

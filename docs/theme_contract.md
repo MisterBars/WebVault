@@ -56,3 +56,8 @@
 
 ## Gutter исходных строк — кандидат gutter-left-10
 Новый реальный класс .wv-window-gutters и .cm-gutters используют transform, задаваемый runtime --wv-source-gutter-shift; style id wv-source-gutter-style. Отступ --wv-gutter-inset читается с .markdown-source-view в CSS px, default 8. Резервированная ширина gutter и положение тела не меняются; цвета/номера/клики CM остаются существующими. При адаптации темы не перезаписывать transform независимо; кастомные CSS-масштабы требуют проверки. Resize/scroll и смена заметки пересчитывают положение. Подробности — [editor_gutters.md](editor_gutters.md). Это локальный кандидат, не завершённая приёмка и не новая нумерация reading.
+
+
+## Разделы заголовков — кандидат headings-fold-11
+.wv-heading-fold-host у реального h1–h6 имеет position:relative; button.wv-heading-fold-button[aria-expanded] позиционируется слева через --wv-heading-fold-offset (fallback -24px), не меняя высоту заголовка. SVG currentColor поворачивается при закрытом разделе; aria-label/title описывают действие. Палитра: text-muted/normal, background-modifier-hover, interactive-accent, radius-s; style id wv-heading-fold-style. data-wv-heading-fold содержит текущую позицию, не постоянный идентификатор заметки; data-wv-view-only исключает эту кнопку из форсирующего click-save gate.
+Состояния collapse в EditorState и source-узел WVFrontmatter относятся к поведению, а не к CSS-теме. YAML-стрелки исключаются моделью source, не глобальным скрытием fold gutter. Полная совместимость внешних тем, а также сворачивание отрисованных списков/кода/таблиц этим не заявлены. См. [heading_folding.md](heading_folding.md).
