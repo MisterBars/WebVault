@@ -1,3 +1,4 @@
+import {appendPropertyHistory} from './property_history.js';
 import {attachPropertyTypeControl,installPropertyTypeStyle} from './property_type_ui.js';
 import {appendPropertyAdder,installPropertyAdderStyle} from './property_add_ui.js';
 import {attachPropertySuggestions,installSuggestionStyle} from './property_suggestions_ui.js';
@@ -18,13 +19,13 @@ export function appendListValue(values, draft) {
   return values.includes(value) ? values.slice() : [...values, value];
 }
 
-export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote, getSuggestions, getNameSuggestions}={}, {inspectProperties, propertyChange, propertyAddChange, propertyTypePreview}) {
+export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote, getSuggestions, getNameSuggestions, history}={}, {inspectProperties, propertyChange, propertyAddChange, propertyTypePreview}) {
   const model = inspectProperties(text);
   const root = document.createElement('section');
   root.className = 'wv-properties wv-properties-v2';
   const heading = document.createElement('h3');
   heading.textContent = 'Свойства';
-  root.appendChild(heading);
+  appendPropertyHistory(root,heading,history);
   if (model.error) {
     const alert = document.createElement('p');
     alert.setAttribute('role', 'alert');

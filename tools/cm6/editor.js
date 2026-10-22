@@ -1,3 +1,4 @@
+import {installPropertyHistory,commitPropertyChange} from './property_history.js';
 import {propertyCandidates} from './property_values.js';
 import {basicSetup} from 'codemirror';
 import {EditorState,Compartment,StateField,StateEffect,Transaction} from '@codemirror/state';
@@ -7,11 +8,11 @@ import {installModeSlider} from './mode_slider.js';
 import {parseDocument,renderTokens,renderDocument,installMarkdownStyle} from './markdown_renderer.js';
 import {getNoteIndex,resolveIndexed,installIndexHooks} from './note_index.js';
 import {installGraph} from './graph_view.js';
-import {findFrontmatter,createPropertiesPanel,installPropertiesStyle} from './properties.js';
+import {findFrontmatter,inspectProperties,createPropertiesPanel,installPropertiesStyle} from './properties.js';
 import {installTrashRibbon} from './trash_ribbon.js';
 const app=window.WebVaultCore,area=document.getElementById('editor');if(!area||!app)throw new Error('WebVault editor not ready');installMarkdownStyle();installPropertiesStyle();
 const nativeValue=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value'),nativeDisabled=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'disabled'),nativeReadOnly=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'readOnly'),nativeHidden=Object.getOwnPropertyDescriptor(HTMLElement.prototype,'hidden');
-const host=document.createElement('div'),reading=document.createElement('section');reading.className='wv-reading-pane';reading.hidden=true;reading.setAttribute('aria-label','Просмотр Markdown');area.parentNode.insertBefore(host,area);area.parentNode.insertBefore(reading,area);host.hidden=area.hidden;const access=new Compartment(),modeEffect=StateEffect.define();let currentMode=1,view;
+const host=document.createElement('div'),reading=document.createElement('section');reading.className='wv-reading-pane';reading.hidden=true;reading.setAttribute('aria-label','Просмотр Markdown');area.parentNode.insertBefore(host,area);area.parentNode.insertBefore(reading,area);host.hidden=area.hidden;const access=new Compartment(),modeEffect=StateEffect.define();let currentMode=1,view,historyBridge=null;
 function propertyNameSuggestions(){
   const user=app.state.user,path=app.state.note,mode=currentMode;
   if(!user||user.isAdmin||user.mustChangePassword||!app.state.hasVault)return Promise.reject(new Error('Нужно личное хранилище.'));
@@ -34,7 +35,7 @@ function openNote(target){if(!app.state.user||app.state.user.isAdmin||app.isBusy
 const live=StateField.define({create:()=>currentMode===1,update:(v,tr)=>{for(const e of tr.effects)if(e.is(modeEffect))v=e.value;return v;}});
 function blocks(state){const text=state.doc.toString(),data=parseDocument(text);const result=data.blocks.map(b=>({from:state.doc.line(b.map[0]+1).from,to:state.doc.line(Math.min(b.map[1],state.doc.lines)).to,tokens:b.tokens,properties:b.tokens[0].type==='wv_properties'})).filter(b=>b.to>b.from);if(!findFrontmatter(text))result.unshift({from:0,to:0,tokens:[],properties:true,synthetic:true});return result;}
 const parsed=StateField.define({create:blocks,update:(v,tr)=>tr.docChanged?blocks(tr.state):v});
-class PropertiesWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const expected=editor.state.doc,user=app.state.user&&app.state.user.id,path=app.state.note;return createPropertiesPanel(expected.toString(),{readOnly:false,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,onCommit:change=>{if(currentMode!==1||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.note!==path||editor.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');editor.dispatch({changes:change,annotations:Transaction.userEvent.of('input.properties')});},restoreFocus:key=>{const control=Array.from(editor.dom.querySelectorAll('[data-wv-property]')).find(n=>n.dataset.wvProperty===key&&!n.disabled);if(control)control.focus();}});}ignoreEvent(){return true;}}
+class PropertiesWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const expected=editor.state.doc,user=app.state.user&&app.state.user.id,path=app.state.note;return createPropertiesPanel(expected.toString(),{readOnly:false,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,history:historyBridge&&historyBridge.forCurrentNote(),onCommit:change=>{if(currentMode!==1||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.note!==path||editor.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');commitPropertyChange(editor,change);},restoreFocus:key=>{const control=Array.from(editor.dom.querySelectorAll('[data-wv-property]')).find(n=>n.dataset.wvProperty===key&&!n.disabled);if(control)control.focus();}});}ignoreEvent(){return true;}}
 class BlockWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const dom=renderTokens(this.block.tokens,openNote);dom.contentEditable='false';dom.addEventListener('mousedown',e=>{if(e.button!==0||e.target.closest('summary'))return;if((e.ctrlKey||e.metaKey)&&e.target.closest('a'))return;e.preventDefault();if(area.disabled)return;editor.dispatch({selection:{anchor:this.block.from},scrollIntoView:true});editor.focus();});return dom;}ignoreEvent(){return true;}}
 class SourceBlockNumber extends GutterMarker {
   constructor(number) {
@@ -76,10 +77,10 @@ function permission(){return [EditorState.readOnly.of(area.disabled||area.readOn
     const front=findFrontmatter(text);
     if(!front || dom.firstElementChild&&dom.firstElementChild.tagName==='DETAILS'){
       const panel=createPropertiesPanel(text,{
-        readOnly:area.disabled||area.readOnly,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,
+        readOnly:area.disabled||area.readOnly,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,history:historyBridge&&historyBridge.forCurrentNote(),
         onCommit:change=>{
           if(currentMode!==2||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.user.isAdmin||app.state.user.mustChangePassword||app.state.note!==path||view.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');
-          view.dispatch({changes:change,annotations:Transaction.userEvent.of('input.properties')});
+          commitPropertyChange(view,change);
         },
         restoreFocus:key=>{
           if(currentMode!==2||!app.state.user||app.state.user.id!==user||app.state.note!==path)return;
@@ -92,11 +93,12 @@ function permission(){return [EditorState.readOnly.of(area.disabled||area.readOn
     reading.appendChild(dom);
   }
 }
-function extensions(){return [basicSetup,markdown(),live,parsed,decorations,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const p=v.state.field(parsed).find(b=>b.properties);return p&&p.to>p.from?Decoration.set([Decoration.replace({}).range(p.from,p.to)]):Decoration.none;}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));if(currentMode===2)queueMicrotask(()=>{if(currentMode===2)renderReading();});}})];}
+function extensions(){return [basicSetup,markdown(),live,parsed,decorations,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const p=v.state.field(parsed).find(b=>b.properties);return p&&p.to>p.from?Decoration.set([Decoration.replace({}).range(p.from,p.to)]):Decoration.none;}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));if(currentMode===2)queueMicrotask(()=>{if(currentMode===2)renderReading();});}queueMicrotask(()=>historyBridge&&historyBridge.refresh());})];}
 function stateFor(text){const p=findFrontmatter(text);return EditorState.create({doc:text,selection:{anchor:currentMode===1&&p?p.end:0},extensions:extensions()});}view=new EditorView({state:stateFor(nativeValue.get.call(area)),parent:host});
 Object.defineProperty(area,'value',{configurable:true,get(){return view.state.doc.toString();},set(v){nativeValue.set.call(area,v);view.setState(stateFor(nativeValue.get.call(area)));if(currentMode===2)renderReading();}});
 for(const [name,descriptor] of [['disabled',nativeDisabled],['readOnly',nativeReadOnly]])Object.defineProperty(area,name,{configurable:true,get(){return descriptor.get.call(area);},set(v){descriptor.set.call(area,v);view.dispatch({effects:access.reconfigure(permission())});}});Object.defineProperty(area,'hidden',{configurable:true,get(){return nativeHidden.get.call(area);},set(v){nativeHidden.set.call(area,v);host.hidden=!!v;}});area.focus=()=>view.focus();area.style.display='none';
+historyBridge=installPropertyHistory({getView:()=>view,getMode:()=>currentMode,area,reading,app,getEntries:text=>inspectProperties(text).entries,noteRoot:document.getElementById('notesPane')});historyBridge.refresh();
 const modes=installModeSlider(i=>{currentMode=i;area.hidden=i===2;reading.hidden=i!==2;const p=i===1?findFrontmatter(view.state.doc.toString()):null;view.dispatch({effects:modeEffect.of(i===1),...(p&&view.state.selection.main.empty&&view.state.selection.main.head<p.end?{selection:{anchor:p.end}}:{})});if(i===2)renderReading();return true;});new MutationObserver(()=>{if(!app.state.user||app.state.user.isAdmin||app.state.user.mustChangePassword)reading.textContent='';}).observe(document.getElementById('identity'),{childList:true,subtree:true,characterData:true});window.WebVaultCM6={view,modes};app.el('saveNote').hidden=true;app.el('reloadNote').hidden=true;installIndexHooks();installGraph();installTrashRibbon();
 window.__WV_LAYOUT_TEST = 'layout-padding0-widgetnumbers-02';
 
-window.__WV_PROPERTIES_TEST = 'properties-type-05';
+window.__WV_PROPERTIES_TEST = 'properties-undo-06';
