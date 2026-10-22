@@ -65,3 +65,7 @@ README теперь краткое текущее состояние и нави
 - [note_appearance.md](note_appearance.md) — CM/DOM selection, синтаксис и шрифтовые роли, диагностика/проверки.
 - [theme_adapter.md](theme_adapter.md) — реализованная основа и границы будущего адаптера.
 - [Minimal 8.1.7](themes/minimal-8.1.7.md), [машинный аудит](themes/minimal-8.1.7.audit.json) — разбор пользовательского CSS, не установленная тема.
+
+
+## Дополнение 23.10.2026: wiki-ссылки
+- [wiki_links.md](wiki_links.md) — [[ menu, однозначный путь, подпись и клик; границы первого этапа и следующий inline-список/checkbox.

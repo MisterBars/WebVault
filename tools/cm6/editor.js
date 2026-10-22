@@ -1,3 +1,5 @@
+import {createWikiCompletions,installWikiCompletionStyle} from './wiki_completion.js';
+import {createResolver} from './note_resolver.js';
 import {noteAppearance,installNoteAppearance} from './note_theme.js';
 import {createHeadingFolds} from './heading_fold_state.js';
 import {attachHeadingFold,renderHeadingReading,installHeadingFoldStyle} from './heading_fold_ui.js';
@@ -14,9 +16,12 @@ import {getNoteIndex,resolveIndexed,installIndexHooks} from './note_index.js';
 import {installGraph} from './graph_view.js';
 import {findFrontmatter,inspectProperties,createPropertiesPanel,installPropertiesStyle} from './properties.js';
 import {installTrashRibbon} from './trash_ribbon.js';
-const app=window.WebVaultCore,area=document.getElementById('editor');if(!area||!app)throw new Error('WebVault editor not ready');installMarkdownStyle();installPropertiesStyle();installHeadingFoldStyle();installNoteAppearance();
+const app=window.WebVaultCore,area=document.getElementById('editor');if(!area||!app)throw new Error('WebVault editor not ready');installMarkdownStyle();installPropertiesStyle();installHeadingFoldStyle();installNoteAppearance();installWikiCompletionStyle();
 const nativeValue=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value'),nativeDisabled=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'disabled'),nativeReadOnly=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'readOnly'),nativeHidden=Object.getOwnPropertyDescriptor(HTMLElement.prototype,'hidden');
 const host=document.createElement('div'),reading=document.createElement('section');reading.className='wv-reading-pane';reading.hidden=true;reading.setAttribute('aria-label','Просмотр Markdown');area.parentNode.insertBefore(host,area);area.parentNode.insertBefore(reading,area);host.hidden=area.hidden;const access=new Compartment(),modeEffect=StateEffect.define();let currentMode=1,view,historyBridge=null;
+const wikiLinks=createWikiCompletions(()=>({userId:app.state.user&&app.state.user.id,path:app.state.note||'',mode:currentMode,canWrite:!!app.state.user&&!app.state.user.isAdmin&&!app.state.user.mustChangePassword&&app.state.hasVault&&!!app.state.note&&!area.disabled&&!area.readOnly&&currentMode!==2&&!(document.activeElement&&document.activeElement.closest('.wv-properties'))&&!(historyBridge&&historyBridge.forCurrentNote().status().blockedByDraft)}),()=>app);
+if(typeof window!=='undefined')window.WebVaultLinks={status:()=>wikiLinks.catalog.status(),refreshCatalog:()=>wikiLinks.catalog.ensure({refresh:true}).then(()=>wikiLinks.catalog.status())};
+
 function propertyNameSuggestions(){
   const user=app.state.user,path=app.state.note,mode=currentMode;
   if(!user||user.isAdmin||user.mustChangePassword||!app.state.hasVault)return Promise.reject(new Error('Нужно личное хранилище.'));
@@ -35,7 +40,21 @@ function propertySuggestions(key){
     return propertyCandidates(index.notes,key,path);
   });
 }
-function openNote(target){if(!app.state.user||app.state.user.isAdmin||app.isBusy())return;const user=app.state.user.id,source=app.state.note||'',old=area.readOnly;area.readOnly=true;app.run(async()=>{try{if(app.state.dirty)await app.saveNote();if(!app.state.user||app.state.user.id!==user||app.state.dirty)throw new Error('Переход отменён: заметка не сохранена или сессия изменилась.');const index=await getNoteIndex({onProgress:t=>app.message(t)}),r=resolveIndexed(index,source,target);if(r.status!=='resolved')throw new Error(r.status==='ambiguous'?'Неоднозначная ссылка: '+r.candidates.join('; '):'Заметка не найдена или ссылка не поддерживается: '+target);if(r.path!==app.state.note)await app.openNote(r.path);if(r.fragment)app.message('Заметка открыта. Переход к заголовку/блоку пока не реализован.');}finally{area.readOnly=old;}});}
+function openNote(target){
+ if(!app.state.user||app.state.user.isAdmin||app.state.user.mustChangePassword||app.isBusy())return;
+ if(historyBridge&&historyBridge.forCurrentNote().status().blockedByDraft){app.message('Сначала подтвердите ввод или завершите/отмените диалог свойств.');return;}
+ const user=app.state.user.id,source=app.state.note||'',old=area.readOnly;area.readOnly=true;
+ app.run(async()=>{try{
+  if(app.state.dirty)await app.saveNote();
+  if(!app.state.user||app.state.user.id!==user||app.state.dirty)throw new Error('Переход отменён: заметка не сохранена или сессия изменилась.');
+  const catalog=await wikiLinks.catalog.ensure(),r=createResolver(catalog.paths)(source,target);
+  if(!app.state.user||app.state.user.id!==user||app.state.note!==source)throw new Error('Переход отменён: заметка или сессия изменились.');
+  if(r.status!=='resolved')throw new Error(r.status==='ambiguous'?'Неоднозначная ссылка: '+r.candidates.join('; '):'Заметка не найдена или ссылка не поддерживается: '+target);
+  if(r.path!==app.state.note)await app.openNote(r.path);
+  if(r.fragment)app.message('Заметка открыта. Переход к заголовку/блоку пока не реализован.');
+ }finally{area.readOnly=old;}});
+}
+
 const live=StateField.define({create:()=>currentMode===1,update:(v,tr)=>{for(const e of tr.effects)if(e.is(modeEffect))v=e.value;return v;}});
 function blocks(state){const text=state.doc.toString(),data=parseDocument(text);const result=data.blocks.map(b=>({from:state.doc.line(b.map[0]+1).from,to:state.doc.line(Math.min(b.map[1],state.doc.lines)).to,tokens:b.tokens,properties:b.tokens[0].type==='wv_properties'})).filter(b=>b.to>b.from);if(!findFrontmatter(text))result.unshift({from:0,to:0,tokens:[],properties:true,synthetic:true});return result;}
 const parsed=StateField.define({create:blocks,update:(v,tr)=>tr.docChanged?blocks(tr.state):v});
@@ -59,10 +78,11 @@ class BlockWidget extends WidgetType{
  eq(other){return other instanceof BlockWidget&&this.block===other.block&&this.folded===other.folded&&(this.section?this.section.to:0)===(other.section?other.section.to:0);}
  toDOM(editor){
   const expected=editor.state.doc,dom=renderTokens(this.block.tokens,openNote);dom.contentEditable='false';
+  dom.addEventListener('click',event=>{if(event.altKey&&event.target.closest('a')){event.preventDefault();event.stopImmediatePropagation();}},true);
   if(this.section)attachHeadingFold(dom,this.section,this.folded,from=>toggleHeading(from,expected));
   dom.addEventListener('mousedown',e=>{
    if(e.button!==0||e.target.closest('summary,[data-wv-heading-fold]'))return;
-   if((e.ctrlKey||e.metaKey)&&e.target.closest('a'))return;
+   if(e.target.closest('a')&&!e.altKey)return;
    e.preventDefault();if(area.disabled)return;
    if(this.folded){if(toggleHeading(this.block.from,expected,true))editor.focus();return;}
    editor.dispatch({selection:{anchor:this.block.from},scrollIntoView:true});editor.focus();
@@ -142,7 +162,7 @@ function permission(){return [EditorState.readOnly.of(area.disabled||area.readOn
     reading.appendChild(dom);
   }
 }
-function extensions(){return [basicSetup,noteAppearance,windowGutters,createSourceMarkdown(findFrontmatter),live,parsed,headingFolds.field,headingFolds.nativeBridge,decorations,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const ranges=[],p=v.state.field(parsed).find(b=>b.properties);if(p&&p.to>p.from)ranges.push(Decoration.replace({}).range(p.from,p.to));for(const section of headingFolds.visible(v.state))ranges.push(Decoration.replace({}).range(section.from,section.to));return Decoration.set(ranges,true);}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));}const foldChanged=u.startState.field(headingFolds.field)!==u.state.field(headingFolds.field);if(currentMode===2&&(u.docChanged||foldChanged))queueMicrotask(()=>{if(currentMode===2)renderReading();});queueMicrotask(()=>historyBridge&&historyBridge.refresh());})];}
+function extensions(){return [basicSetup,noteAppearance,wikiLinks.extension,windowGutters,createSourceMarkdown(findFrontmatter),live,parsed,headingFolds.field,headingFolds.nativeBridge,decorations,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const ranges=[],p=v.state.field(parsed).find(b=>b.properties);if(p&&p.to>p.from)ranges.push(Decoration.replace({}).range(p.from,p.to));for(const section of headingFolds.visible(v.state))ranges.push(Decoration.replace({}).range(section.from,section.to));return Decoration.set(ranges,true);}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));}const foldChanged=u.startState.field(headingFolds.field)!==u.state.field(headingFolds.field);if(currentMode===2&&(u.docChanged||foldChanged))queueMicrotask(()=>{if(currentMode===2)renderReading();});queueMicrotask(()=>historyBridge&&historyBridge.refresh());})];}
 function stateFor(text){const p=findFrontmatter(text);return EditorState.create({doc:text,selection:{anchor:currentMode===1&&p?p.end:0},extensions:extensions()});}view=new EditorView({state:stateFor(nativeValue.get.call(area)),parent:host});
 Object.defineProperty(area,'value',{configurable:true,get(){return view.state.doc.toString();},set(v){nativeValue.set.call(area,v);view.setState(stateFor(nativeValue.get.call(area)));if(currentMode===2)renderReading();}});
 for(const [name,descriptor] of [['disabled',nativeDisabled],['readOnly',nativeReadOnly]])Object.defineProperty(area,name,{configurable:true,get(){return descriptor.get.call(area);},set(v){descriptor.set.call(area,v);view.dispatch({effects:access.reconfigure(permission())});}});Object.defineProperty(area,'hidden',{configurable:true,get(){return nativeHidden.get.call(area);},set(v){nativeHidden.set.call(area,v);host.hidden=!!v;}});area.focus=()=>view.focus();area.style.display='none';

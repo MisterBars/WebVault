@@ -71,3 +71,7 @@
 ## Уточнение 12b: фон токенов и переносы
 CM selection рисуется ниже текста: непрозрачный background у wv-md-code недопустим для подсветки самих исходных символов. В 12b он transparent, в HTML reading/live-rendered CODE/PRE фон --code-background сохраняется. Будущий адаптер должен различать фон поверхности/слоя и фон inline декорации; opaque/e-ink остаётся отдельной задачей. Цвет --text-selection не меняется этим исправлением.
 Один исходный softbreak выводится как настоящий BR, не зависящий от white-space:normal; тема не должна молча скрывать семантический BR. Это политика отображения WebVault, не добавление пробелов/новых строк в Markdown-файл и не изменение code fence LF.
+
+
+## Подсказки ссылок — кандидат wiki-links-13
+Используется реальный CM completion: .cm-tooltip-autocomplete, .cm-completionLabel, .cm-completionDetail и li[aria-selected=true]. Новое style-id wv-wiki-completion-style задаёт UI-font/размеры, background-secondary, background-modifier-border/active-hover, text-normal/muted. Выделение пункта не использует жёсткий белый/system Highlight, собственные scrollbar/gutter/layout не переносит. Сырые пути выводятся библиотечным текстовым renderer, не HTML. Списковые inline-компоненты/checkbox ещё не созданы этим этапом — фиктивный контракт для них не назначается.
