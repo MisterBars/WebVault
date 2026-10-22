@@ -1,3 +1,4 @@
+import {attachPropertyTypeControl,installPropertyTypeStyle} from './property_type_ui.js';
 import {appendPropertyAdder,installPropertyAdderStyle} from './property_add_ui.js';
 import {attachPropertySuggestions,installSuggestionStyle} from './property_suggestions_ui.js';
 export function parsePropertyWikiLink(value) {
@@ -17,7 +18,7 @@ export function appendListValue(values, draft) {
   return values.includes(value) ? values.slice() : [...values, value];
 }
 
-export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote, getSuggestions, getNameSuggestions}={}, {inspectProperties, propertyChange, propertyAddChange}) {
+export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote, getSuggestions, getNameSuggestions}={}, {inspectProperties, propertyChange, propertyAddChange, propertyTypePreview}) {
   const model = inspectProperties(text);
   const root = document.createElement('section');
   root.className = 'wv-properties wv-properties-v2';
@@ -41,17 +42,22 @@ export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote
     row.className = 'wv-property-row';
     const label = document.createElement('label');
     label.className = 'wv-property-name';
-    const icon = document.createElement('span');
-    icon.setAttribute('aria-hidden', 'true');
+    const icon = document.createElement('button');
+    icon.type = 'button';
+    icon.className = 'wv-property-type-button';
     icon.textContent = ({text:'Aa', number:'#', checkbox:'✓', date:'▦', datetime:'▦', list:'☷', tags:'#'})[entry.type];
-    label.append(icon, document.createTextNode(entry.key));
+    const nameCell = document.createElement('div');
+    nameCell.className = 'wv-property-name-cell';
+    label.appendChild(document.createTextNode(entry.key));
+    nameCell.append(icon,label);
     const cell = document.createElement('div');
     cell.className = 'wv-property-value';
     const error = document.createElement('span');
     error.className = 'wv-property-error';
     error.setAttribute('role', 'status');
-    row.append(label, cell);
+    row.append(nameCell, cell);
     root.appendChild(row);
+    attachPropertyTypeControl(icon,{entry,root,row,error,entries:model.entries,readOnly,onCommit,restoreFocus,preview:target=>propertyTypePreview(text,entry.key,target)});
     let committing = false;
     function commit(value, focusControl) {
       if (readOnly || committing) return false;
@@ -215,6 +221,7 @@ export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote
 }
 
 export function installPanelStyle() {
+  installPropertyTypeStyle();
   installPropertyAdderStyle();
   installSuggestionStyle();
   if (document.getElementById('wv-properties-v2-style')) return;

@@ -99,4 +99,4 @@ for(const [name,descriptor] of [['disabled',nativeDisabled],['readOnly',nativeRe
 const modes=installModeSlider(i=>{currentMode=i;area.hidden=i===2;reading.hidden=i!==2;const p=i===1?findFrontmatter(view.state.doc.toString()):null;view.dispatch({effects:modeEffect.of(i===1),...(p&&view.state.selection.main.empty&&view.state.selection.main.head<p.end?{selection:{anchor:p.end}}:{})});if(i===2)renderReading();return true;});new MutationObserver(()=>{if(!app.state.user||app.state.user.isAdmin||app.state.user.mustChangePassword)reading.textContent='';}).observe(document.getElementById('identity'),{childList:true,subtree:true,characterData:true});window.WebVaultCM6={view,modes};app.el('saveNote').hidden=true;app.el('reloadNote').hidden=true;installIndexHooks();installGraph();installTrashRibbon();
 window.__WV_LAYOUT_TEST = 'layout-padding0-widgetnumbers-02';
 
-window.__WV_PROPERTIES_TEST = 'properties-add-04';
+window.__WV_PROPERTIES_TEST = 'properties-type-05';
