@@ -1,3 +1,4 @@
+import {hasTableDraft} from './table_ui.js';
 import {appendNoteHistoryButtons,historyButtonState,installNoteHistoryStyle} from './note_history_controls.js';
 import {Transaction} from '@codemirror/state';
 import {undo,redo,undoDepth,redoDepth,isolateHistory} from '@codemirror/commands';
@@ -9,6 +10,7 @@ export function installPropertyHistory({getView,getMode,area,reading,app,getEntr
  const identity=()=>JSON.stringify([app.state.user&&app.state.user.id,app.state.note]);
  function scope(){return getMode()===2?reading:getView().dom;}
  function draftPresent(){
+  if(hasTableDraft())return true;
   const root=scope();
   if(root.querySelector('.wv-property-add-form,.wv-property-type-panel'))return true;
   const entries=getEntries(getView().state.doc.toString());
