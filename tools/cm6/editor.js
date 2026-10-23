@@ -1,3 +1,5 @@
+import {inlineListRows} from './list_inline_model.js';
+import {createInlineLists,installInlineListStyle} from './list_inline.js';
 import {closeCompletion} from '@codemirror/autocomplete';
 import {createWikiCompletions,installWikiCompletionStyle} from './wiki_completion.js';
 import {createResolver} from './note_resolver.js';
@@ -17,7 +19,7 @@ import {getNoteIndex,resolveIndexed,installIndexHooks} from './note_index.js';
 import {installGraph} from './graph_view.js';
 import {findFrontmatter,inspectProperties,createPropertiesPanel,installPropertiesStyle} from './properties.js';
 import {installTrashRibbon} from './trash_ribbon.js';
-const app=window.WebVaultCore,area=document.getElementById('editor');if(!area||!app)throw new Error('WebVault editor not ready');installMarkdownStyle();installPropertiesStyle();installHeadingFoldStyle();installNoteAppearance();installWikiCompletionStyle();
+const app=window.WebVaultCore,area=document.getElementById('editor');if(!area||!app)throw new Error('WebVault editor not ready');installMarkdownStyle();installPropertiesStyle();installHeadingFoldStyle();installNoteAppearance();installWikiCompletionStyle();installInlineListStyle();
 const nativeValue=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value'),nativeDisabled=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'disabled'),nativeReadOnly=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'readOnly'),nativeHidden=Object.getOwnPropertyDescriptor(HTMLElement.prototype,'hidden');
 const host=document.createElement('div'),reading=document.createElement('section');reading.className='wv-reading-pane';reading.hidden=true;reading.setAttribute('aria-label','Просмотр Markdown');area.parentNode.insertBefore(host,area);area.parentNode.insertBefore(reading,area);host.hidden=area.hidden;const access=new Compartment(),modeEffect=StateEffect.define();let currentMode=1,view,historyBridge=null;
 const wikiLinks=createWikiCompletions(()=>({userId:app.state.user&&app.state.user.id,path:app.state.note||'',mode:currentMode,canWrite:!!app.state.user&&!app.state.user.isAdmin&&!app.state.user.mustChangePassword&&app.state.hasVault&&!!app.state.note&&!area.disabled&&!area.readOnly&&currentMode!==2&&!(document.activeElement&&document.activeElement.closest('.wv-properties'))&&!(historyBridge&&historyBridge.forCurrentNote().status().blockedByDraft)}),()=>app);
@@ -83,6 +85,7 @@ function toggleHeading(from,expectedDoc,editing=false){
  return ok;
 }
 
+const inlineLists=createInlineLists({isLive:state=>state.field(live),getBlocks:state=>state.field(parsed),getHidden:state=>headingFolds.visible(state),onNote:openNote});
 class PropertiesWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const expected=editor.state.doc,user=app.state.user&&app.state.user.id,path=app.state.note;return createPropertiesPanel(expected.toString(),{readOnly:false,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,getLinkSuggestions:propertyLinkSuggestions,history:historyBridge&&historyBridge.forCurrentNote(),onCommit:change=>{if(currentMode!==1||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.note!==path||editor.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');commitPropertyChange(editor,change);},restoreFocus:key=>{const control=Array.from(editor.dom.querySelectorAll('[data-wv-property]')).find(n=>n.dataset.wvProperty===key&&!n.disabled);if(control)control.focus();}});}ignoreEvent(){return true;}}
 class BlockWidget extends WidgetType{
  constructor(block,section=null,folded=false){super();this.block=block;this.section=section;this.folded=folded;}
@@ -134,9 +137,10 @@ const sourceBlockNumbers = lineNumberWidgetMarker.of(
 );
 function decorate(state){
  if(!state.field(live))return Decoration.none;
- const result=[],sections=headingFolds.sections(state),collapsed=headingFolds.visible(state);
+ const result=[],sections=headingFolds.sections(state),collapsed=headingFolds.visible(state),text=state.doc.toString();
  for(const b of state.field(parsed)){
   if(collapsed.some(s=>b.from>s.from&&b.from<=s.to))continue;
+  if(inlineListRows(text,b))continue;
   const section=sections.find(s=>s.from===b.from),closed=collapsed.find(s=>s.from===b.from);
   const active=state.selection.ranges.some(r=>r.empty?r.head>=b.from&&r.head<=b.to:r.from<=b.to&&r.to>=b.from);
   if(b.properties||closed||!active||section&&headingFolds.isPinned(state,section.from)){
@@ -173,7 +177,7 @@ function permission(){return [EditorState.readOnly.of(area.disabled||area.readOn
     reading.appendChild(dom);
   }
 }
-function extensions(){return [basicSetup,noteAppearance,wikiLinks.extension,windowGutters,createSourceMarkdown(findFrontmatter),live,parsed,headingFolds.field,headingFolds.nativeBridge,decorations,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const ranges=[],p=v.state.field(parsed).find(b=>b.properties);if(p&&p.to>p.from)ranges.push(Decoration.replace({}).range(p.from,p.to));for(const section of headingFolds.visible(v.state))ranges.push(Decoration.replace({}).range(section.from,section.to));return Decoration.set(ranges,true);}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));}const foldChanged=u.startState.field(headingFolds.field)!==u.state.field(headingFolds.field);if(currentMode===2&&(u.docChanged||foldChanged))queueMicrotask(()=>{if(currentMode===2)renderReading();});queueMicrotask(()=>historyBridge&&historyBridge.refresh());})];}
+function extensions(){return [basicSetup,noteAppearance,wikiLinks.extension,windowGutters,createSourceMarkdown(findFrontmatter),live,parsed,headingFolds.field,headingFolds.nativeBridge,decorations,inlineLists,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const ranges=[],p=v.state.field(parsed).find(b=>b.properties);if(p&&p.to>p.from)ranges.push(Decoration.replace({}).range(p.from,p.to));for(const section of headingFolds.visible(v.state))ranges.push(Decoration.replace({}).range(section.from,section.to));return Decoration.set(ranges,true);}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));}const foldChanged=u.startState.field(headingFolds.field)!==u.state.field(headingFolds.field);if(currentMode===2&&(u.docChanged||foldChanged))queueMicrotask(()=>{if(currentMode===2)renderReading();});queueMicrotask(()=>historyBridge&&historyBridge.refresh());})];}
 function stateFor(text){const p=findFrontmatter(text);return EditorState.create({doc:text,selection:{anchor:currentMode===1&&p?p.end:0},extensions:extensions()});}view=new EditorView({state:stateFor(nativeValue.get.call(area)),parent:host});
 Object.defineProperty(area,'value',{configurable:true,get(){return view.state.doc.toString();},set(v){nativeValue.set.call(area,v);view.setState(stateFor(nativeValue.get.call(area)));if(currentMode===2)renderReading();}});
 for(const [name,descriptor] of [['disabled',nativeDisabled],['readOnly',nativeReadOnly]])Object.defineProperty(area,name,{configurable:true,get(){return descriptor.get.call(area);},set(v){descriptor.set.call(area,v);view.dispatch({effects:access.reconfigure(permission())});}});Object.defineProperty(area,'hidden',{configurable:true,get(){return nativeHidden.get.call(area);},set(v){nativeHidden.set.call(area,v);host.hidden=!!v;}});area.focus=()=>view.focus();area.style.display='none';
