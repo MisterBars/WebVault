@@ -75,3 +75,7 @@ CM selection рисуется ниже текста: непрозрачный ba
 
 ## Подсказки ссылок — кандидат wiki-links-13
 Используется реальный CM completion: .cm-tooltip-autocomplete, .cm-completionLabel, .cm-completionDetail и li[aria-selected=true]. Новое style-id wv-wiki-completion-style задаёт UI-font/размеры, background-secondary, background-modifier-border/active-hover, text-normal/muted. Выделение пункта не использует жёсткий белый/system Highlight, собственные scrollbar/gutter/layout не переносит. Сырые пути выводятся библиотечным текстовым renderer, не HTML. Списковые inline-компоненты/checkbox ещё не созданы этим этапом — фиктивный контракт для них не назначается.
+
+
+## Wiki-picker свойств — кандидат property-links-14
+.wv-property-wiki-menu[role=listbox] — fixed popup в body, .wv-property-wiki-option[aria-selected=true], .wv-property-wiki-name/path/help; style-id wv-property-wiki-style. Цвета/границы через background-primary, background-modifier-border/active-hover/box-shadow, text-normal/muted, font-ui-small/smaller, --wv-ui-font, radius-s/m. Нет HTML из названий файлов, нет внешних ресурсов. Input/textarea получают autocomplete/controls/activedescendant, native textarea-роль не подменяется combobox. Обычный .wv-property-suggestions и новый Wiki-picker владеют только своими aria-controls и не открываются одновременно. Логика имён/типов/календаря не является CSS-совместимостью и не меняется. См. [property_links.md](property_links.md).

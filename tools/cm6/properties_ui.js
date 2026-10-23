@@ -1,17 +1,11 @@
+import {attachPropertyWikiPicker,installPropertyWikiStyle} from './property_wiki_picker.js';
+import {hasPropertyWiki,parseWholePropertyWiki} from './property_link_model.js';
 import {attachCalendar,installCalendarStyle} from './calendar_ui.js';
 import {appendPropertyHistory} from './property_history.js';
 import {attachPropertyTypeControl,installPropertyTypeStyle} from './property_type_ui.js';
 import {appendPropertyAdder,installPropertyAdderStyle} from './property_add_ui.js';
 import {attachPropertySuggestions,installSuggestionStyle} from './property_suggestions_ui.js';
-export function parsePropertyWikiLink(value) {
-  const match = /^\[\[([^\]\r\n]+)\]\]$/.exec(value.trim());
-  if (!match) return null;
-  const separator = match[1].indexOf('|');
-  const target = (separator < 0 ? match[1] : match[1].slice(0, separator)).trim();
-  if (!target) return null;
-  const label = separator < 0 ? target : match[1].slice(separator + 1).trim() || target;
-  return {target, label};
-}
+export function parsePropertyWikiLink(value){return parseWholePropertyWiki(value);}
 
 export function appendListValue(values, draft) {
   const value = draft.trim();
@@ -20,7 +14,7 @@ export function appendListValue(values, draft) {
   return values.includes(value) ? values.slice() : [...values, value];
 }
 
-export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote, getSuggestions, getNameSuggestions, history}={}, {inspectProperties, propertyChange, propertyAddChange, propertyTypePreview}) {
+export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote, getSuggestions, getNameSuggestions, getLinkSuggestions, history}={}, {inspectProperties, propertyChange, propertyAddChange, propertyTypePreview}) {
   const model = inspectProperties(text);
   const root = document.createElement('section');
   root.className = 'wv-properties wv-properties-v2';
@@ -158,7 +152,8 @@ export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote
           return false;
         }
       };
-      if (!readOnly && getSuggestions) attachPropertySuggestions(input,field,{key:entry.key,selected:entry.value,getSuggestions});
+      const valueSuggestions=!readOnly&&getSuggestions?attachPropertySuggestions(input,field,{key:entry.key,selected:entry.value,getSuggestions,enabled:()=>!hasPropertyWiki(input.value)}):null;
+      if(!readOnly&&getLinkSuggestions)attachPropertyWikiPicker(input,field,{getLinkSuggestions,onError:message=>{error.textContent=message;},closeNormal:()=>valueSuggestions&&valueSuggestions.close()});
       input.addEventListener('keydown', event => {
         if (event.isComposing || event.keyCode === 229) return;
         if (event.key === 'Enter') {
@@ -218,12 +213,14 @@ export function createPanel(text, {readOnly=true, onCommit, restoreFocus, onNote
     });
     cell.append(input, error);
     if(['date','datetime'].includes(entry.type))attachCalendar(input,{kind:entry.type,onError:message=>{error.textContent=message;}});
+    if(entry.type==='text'&&!readOnly&&getLinkSuggestions)attachPropertyWikiPicker(input,cell,{getLinkSuggestions,onError:message=>{error.textContent=message;}});
   }
-  appendPropertyAdder(root,{entries:model.entries,readOnly,getNameSuggestions,restoreFocus,onAdd:(key,type,draft)=>{if(!onCommit)throw new Error('Редактирование недоступно.');onCommit(propertyAddChange(text,key,type,draft));}});
+  appendPropertyAdder(root,{entries:model.entries,readOnly,getNameSuggestions,getLinkSuggestions,restoreFocus,onAdd:(key,type,draft)=>{if(!onCommit)throw new Error('Редактирование недоступно.');onCommit(propertyAddChange(text,key,type,draft));}});
   return root;
 }
 
 export function installPanelStyle() {
+  installPropertyWikiStyle();
   installCalendarStyle();
   installPropertyTypeStyle();
   installPropertyAdderStyle();

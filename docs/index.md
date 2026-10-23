@@ -69,3 +69,7 @@ README теперь краткое текущее состояние и нави
 
 ## Дополнение 23.10.2026: wiki-ссылки
 - [wiki_links.md](wiki_links.md) — [[ menu, однозначный путь, подпись и клик; границы первого этапа и следующий inline-список/checkbox.
+
+
+## Дополнение 23.10.2026: ссылки свойств
+- [property_links.md](property_links.md) — native text/list picker, подпись, shared catalog, Enter/readonly/состояния и ограничения.

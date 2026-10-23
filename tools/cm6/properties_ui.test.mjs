@@ -37,3 +37,9 @@ test('wiki links keep targets and aliases',()=>{
   assert.equal(parsePropertyWikiLink('prefix [[Note]]'),null);
   assert.equal(parsePropertyWikiLink('[[]]'),null);
 });
+
+
+test('property link caption may contain a single closing bracket',()=>{
+ assert.deepEqual(parsePropertyWikiLink('[[/A.md|Caption [one] ]]'),{target:'/A.md',label:'Caption [one]'});
+ assert.equal(parsePropertyWikiLink('[[A]] [[B]]'),null);
+});

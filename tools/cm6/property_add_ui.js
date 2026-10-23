@@ -1,6 +1,7 @@
+import {attachPropertyWikiPicker,installPropertyWikiStyle} from './property_wiki_picker.js';
 import {attachCalendar,installCalendarStyle} from './calendar_ui.js';
 import {PROPERTY_TYPES,TYPE_LABELS,TYPE_ICONS,STANDARD_PROPERTIES,propertyNameHints,normalisePropertyName} from './property_add_model.js';
-export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggestions,restoreFocus}) {
+export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggestions,getLinkSuggestions,restoreFocus}) {
   if(readOnly)return;
   const button=document.createElement('button');
   button.type='button';button.className='wv-property-add-button';button.textContent='＋ Добавить свойство';
@@ -30,10 +31,11 @@ export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggesti
     form.append(nameLabel,typeLabel,valueLabel,status,actions);root.appendChild(form);
     let known=[],options=[],active=-1,loading=false,disposed=false;
     const existing=entries.map(e=>e.key);
-    let calendar=null;
+    let calendar=null,wikiPicker=null;
     function hide(){menu.hidden=true;name.setAttribute('aria-expanded','false');name.removeAttribute('aria-activedescendant');name.removeAttribute('aria-controls');active=-1;}
-    function discard(){disposed=true;if(calendar){calendar.destroy();calendar=null;}form.remove();form=null;button.hidden=false;button.focus({preventScroll:true});}
+    function discard(){disposed=true;if(wikiPicker){wikiPicker.destroy();wikiPicker=null;}if(calendar){calendar.destroy();calendar=null;}form.remove();form=null;button.hidden=false;button.focus({preventScroll:true});}
     function configure(){
+      if(wikiPicker){wikiPicker.destroy();wikiPicker=null;}
       if(calendar){calendar.destroy();calendar=null;}
       value.value='';value.checked=false;value.required=false;value.step='any';
       value.type=type.value==='checkbox'?'checkbox':type.value==='date'?'date':type.value==='datetime'?'datetime-local':type.value==='number'?'number':'text';
@@ -42,6 +44,7 @@ export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggesti
       value.placeholder=type.value==='list'?'Первое значение (необязательно)':'';
       valueLabel.firstChild.textContent=type.value==='list'?'Первое значение (необязательно)':'Начальное значение';
       if(['date','datetime'].includes(type.value))calendar=attachCalendar(value,{kind:type.value,commit:false,onError:message=>{status.textContent=message;}});
+      if(['text','list'].includes(type.value)&&getLinkSuggestions)wikiPicker=attachPropertyWikiPicker(value,valueLabel,{getLinkSuggestions,onError:message=>{status.textContent=message;}});
     }
     function applyTypeHint(){
       const key=name.value.trim().toLowerCase();
@@ -110,6 +113,7 @@ export function appendPropertyAdder(root,{entries,readOnly,onAdd,getNameSuggesti
   });
 }
 export function installPropertyAdderStyle(){
+ installPropertyWikiStyle();
  installCalendarStyle();
  if(document.getElementById('wv-property-add-style'))return;
  const style=document.createElement('style');style.id='wv-property-add-style';

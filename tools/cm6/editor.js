@@ -1,3 +1,4 @@
+import {closeCompletion} from '@codemirror/autocomplete';
 import {createWikiCompletions,installWikiCompletionStyle} from './wiki_completion.js';
 import {createResolver} from './note_resolver.js';
 import {noteAppearance,installNoteAppearance} from './note_theme.js';
@@ -22,6 +23,16 @@ const host=document.createElement('div'),reading=document.createElement('section
 const wikiLinks=createWikiCompletions(()=>({userId:app.state.user&&app.state.user.id,path:app.state.note||'',mode:currentMode,canWrite:!!app.state.user&&!app.state.user.isAdmin&&!app.state.user.mustChangePassword&&app.state.hasVault&&!!app.state.note&&!area.disabled&&!area.readOnly&&currentMode!==2&&!(document.activeElement&&document.activeElement.closest('.wv-properties'))&&!(historyBridge&&historyBridge.forCurrentNote().status().blockedByDraft)}),()=>app);
 if(typeof window!=='undefined')window.WebVaultLinks={status:()=>wikiLinks.catalog.status(),refreshCatalog:()=>wikiLinks.catalog.ensure({refresh:true}).then(()=>wikiLinks.catalog.status())};
 
+function propertyLinkSuggestions({refresh=false}={}){
+ const user=app.state.user,path=app.state.note,mode=currentMode,expected=view&&view.state.doc;
+ if(!user||user.isAdmin||user.mustChangePassword||!app.state.hasVault||!path||!expected||area.disabled||area.readOnly||mode===0)return Promise.reject(new Error('Редактор свойств недоступен.'));
+ const id=user.id;closeCompletion(view);
+ return wikiLinks.catalog.ensure({refresh}).then(snapshot=>{
+  const valid=()=>!!app.state.user&&app.state.user.id===id&&!app.state.user.isAdmin&&!app.state.user.mustChangePassword&&app.state.note===path&&currentMode===mode&&view.state.doc===expected&&!area.disabled&&!area.readOnly&&wikiLinks.catalog.isCurrent(snapshot);
+  if(!valid())throw new Error('Сессия, заметка или каталог изменились.');
+  return {paths:snapshot.paths,sourcePath:path,isCurrent:valid};
+ });
+}
 function propertyNameSuggestions(){
   const user=app.state.user,path=app.state.note,mode=currentMode;
   if(!user||user.isAdmin||user.mustChangePassword||!app.state.hasVault)return Promise.reject(new Error('Нужно личное хранилище.'));
@@ -72,7 +83,7 @@ function toggleHeading(from,expectedDoc,editing=false){
  return ok;
 }
 
-class PropertiesWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const expected=editor.state.doc,user=app.state.user&&app.state.user.id,path=app.state.note;return createPropertiesPanel(expected.toString(),{readOnly:false,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,history:historyBridge&&historyBridge.forCurrentNote(),onCommit:change=>{if(currentMode!==1||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.note!==path||editor.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');commitPropertyChange(editor,change);},restoreFocus:key=>{const control=Array.from(editor.dom.querySelectorAll('[data-wv-property]')).find(n=>n.dataset.wvProperty===key&&!n.disabled);if(control)control.focus();}});}ignoreEvent(){return true;}}
+class PropertiesWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const expected=editor.state.doc,user=app.state.user&&app.state.user.id,path=app.state.note;return createPropertiesPanel(expected.toString(),{readOnly:false,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,getLinkSuggestions:propertyLinkSuggestions,history:historyBridge&&historyBridge.forCurrentNote(),onCommit:change=>{if(currentMode!==1||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.note!==path||editor.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');commitPropertyChange(editor,change);},restoreFocus:key=>{const control=Array.from(editor.dom.querySelectorAll('[data-wv-property]')).find(n=>n.dataset.wvProperty===key&&!n.disabled);if(control)control.focus();}});}ignoreEvent(){return true;}}
 class BlockWidget extends WidgetType{
  constructor(block,section=null,folded=false){super();this.block=block;this.section=section;this.folded=folded;}
  eq(other){return other instanceof BlockWidget&&this.block===other.block&&this.folded===other.folded&&(this.section?this.section.to:0)===(other.section?other.section.to:0);}
@@ -146,7 +157,7 @@ function permission(){return [EditorState.readOnly.of(area.disabled||area.readOn
     const front=findFrontmatter(text);
     if(!front || dom.firstElementChild&&dom.firstElementChild.tagName==='DETAILS'){
       const panel=createPropertiesPanel(text,{
-        readOnly:area.disabled||area.readOnly,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,history:historyBridge&&historyBridge.forCurrentNote(),
+        readOnly:area.disabled||area.readOnly,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,getLinkSuggestions:propertyLinkSuggestions,history:historyBridge&&historyBridge.forCurrentNote(),
         onCommit:change=>{
           if(currentMode!==2||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.user.isAdmin||app.state.user.mustChangePassword||app.state.note!==path||view.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');
           commitPropertyChange(view,change);

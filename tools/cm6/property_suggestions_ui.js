@@ -1,6 +1,6 @@
 import {filterPropertyValues} from './property_values.js';
 let nextId = 0;
-export function attachPropertySuggestions(input, field, {key, selected, getSuggestions}) {
+export function attachPropertySuggestions(input, field, {key, selected, getSuggestions, enabled=()=>true}) {
   const id = 'wv-property-suggestions-' + (++nextId);
   input.setAttribute('role','combobox');
   input.setAttribute('aria-autocomplete','list');
@@ -15,9 +15,7 @@ export function attachPropertySuggestions(input, field, {key, selected, getSugge
     options=[];
     active=-1;
     wantsFirst=false;
-    input.setAttribute('aria-expanded','false');
-    input.removeAttribute('aria-controls');
-    input.removeAttribute('aria-activedescendant');
+    if(input.getAttribute('aria-controls')===id){input.setAttribute('aria-expanded','false');input.removeAttribute('aria-controls');input.removeAttribute('aria-activedescendant');}
     window.removeEventListener('scroll',position,true);
     window.removeEventListener('resize',position);
     window.removeEventListener('webvault:index-invalidated',invalidate);
@@ -81,6 +79,7 @@ export function attachPropertySuggestions(input, field, {key, selected, getSugge
     input.wvCommit();
   }
   function render() {
+    if(!enabled()){close();return;}
     if (document.activeElement!==input || !input.isConnected || composing) return;
     options=filterPropertyValues(pool || [],input.value,selected);
     if (!options.length) {close();return;}
@@ -102,6 +101,7 @@ export function attachPropertySuggestions(input, field, {key, selected, getSugge
     position();
   }
   async function refresh() {
+    if(!enabled()){close();return;}
     if (composing || !input.isConnected || document.activeElement!==input) return;
     if (pool) {render();return;}
     const request=epoch;
@@ -126,6 +126,7 @@ export function attachPropertySuggestions(input, field, {key, selected, getSugge
   input.addEventListener('compositionend',()=>{composing=false;refresh();});
   input.addEventListener('blur',()=>{pool=null;close();});
   input.addEventListener('keydown',event=>{
+    if(!enabled()){close();return;}
     if(event.isComposing || event.keyCode===229 || composing)return;
     if(event.key==='ArrowDown'||event.key==='ArrowUp'){
       event.preventDefault();event.stopImmediatePropagation();
@@ -139,6 +140,7 @@ export function attachPropertySuggestions(input, field, {key, selected, getSugge
       event.preventDefault();event.stopImmediatePropagation();close();
     }
   },true);
+  return {close};
 }
 export function installSuggestionStyle() {
   if(document.getElementById('wv-property-suggestions-style'))return;
