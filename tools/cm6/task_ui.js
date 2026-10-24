@@ -1,7 +1,7 @@
 import {Transaction} from '@codemirror/state';
 import {isolateHistory} from '@codemirror/commands';
 import {toggleTaskChanges,localTaskTime} from './task_model.js';
-export function makeTaskCheckbox(task,view=null,guard=()=>true){
+export function makeTaskCheckbox(task,view=null,guard=()=>true,changesForTask=toggleTaskChanges){
  const node=document.createElement('input');node.type='checkbox';node.className='wv-task-checkbox';node.checked=task.checked;node.setAttribute('aria-label',task.checked?'Снять отметку задачи':'Отметить задачу');
  const core=typeof window!=='undefined'&&window.WebVaultCore,cm=typeof window!=='undefined'&&window.WebVaultCM6;view=view||cm?.view;
  const expected=view?.state.doc,user=core?.state.user?.id,path=core?.state.note;
@@ -10,7 +10,7 @@ export function makeTaskCheckbox(task,view=null,guard=()=>true){
  node.addEventListener('mousedown',e=>{e.preventDefault();e.stopPropagation();});
  node.addEventListener('click',e=>{
   e.preventDefault();e.stopPropagation();if(!ready()){node.checked=task.checked;return;}
-  try{const changes=toggleTaskChanges(view.state.doc.toString(),task);view.dispatch({changes,annotations:[Transaction.userEvent.of('input.task'),isolateHistory.of('full')]});}catch(error){core.message(error.message);}
+  try{const changes=changesForTask(view.state.doc.toString(),task);view.dispatch({changes,annotations:[Transaction.userEvent.of('input.task'),isolateHistory.of('full')]});}catch(error){core.message(error.message);}
  });
  return node;
 }
