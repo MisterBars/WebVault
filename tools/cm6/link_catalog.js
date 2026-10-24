@@ -1,5 +1,8 @@
 import {validNotePath} from './wiki_link_model.js';
+const shared=new WeakMap();
 export function createLinkCatalog(getApp,{notes=300,folders=300}={}){
+ const defaultInstance=arguments.length===1,app=defaultInstance?getApp():null;
+ if(defaultInstance&&shared.has(app))return shared.get(app);
  let cache=null,pending=null,epoch=0,owner=null;
  function user(){const s=getApp().state;if(!s.user||s.user.isAdmin||s.user.mustChangePassword||!s.hasVault)throw new Error('Нужно личное хранилище.');return s.user.id;}
  function invalidate(){cache=null;pending=null;epoch++;}
@@ -24,5 +27,6 @@ export function createLinkCatalog(getApp,{notes=300,folders=300}={}){
   pending=promise;try{return await promise;}finally{if(pending===promise)pending=null;}
  }
  function isCurrent(snapshot){try{return !!snapshot&&snapshot===cache&&snapshot.ownerId===user()&&snapshot.generation===epoch;}catch{return false;}}
- return {ensure,invalidate,isCurrent,status:()=>({cached:!!cache,noteCount:cache?cache.paths.length:0,pending:!!pending,generation:epoch})};
+ const result={ensure,invalidate,isCurrent,status:()=>({cached:!!cache,noteCount:cache?cache.paths.length:0,pending:!!pending,generation:epoch})};
+ if(defaultInstance)shared.set(app,result);return result;
 }

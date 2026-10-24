@@ -1,6 +1,6 @@
 import {hasPropertyWiki,propertyWikiDraft,propertyLinkDraft,propertyLinkChoices,validatePropertyLinks} from './property_link_model.js';
 let serial=0;
-export function attachPropertyWikiPicker(input,field,{getLinkSuggestions,onError=()=>{},closeNormal=()=>{}}){
+export function attachPropertyWikiPicker(input,field,{getLinkSuggestions,onError=()=>{},closeNormal=()=>{},enabled=()=>true,validateValue=validatePropertyLinks,menuLabel='Выбор заметки для свойства'}){
  installPropertyWikiStyle();
  const id='wv-property-wiki-'+(++serial),originalCommit=input.wvCommit,initial=input.value;
  const saved={};for(const attr of ['role','aria-autocomplete','aria-expanded','aria-controls','aria-activedescendant'])saved[attr]=input.getAttribute(attr);
@@ -8,7 +8,7 @@ export function attachPropertyWikiPicker(input,field,{getLinkSuggestions,onError
  let popup=null,items=[],active=0,snapshot=null,pending=null,epoch=0,observer=null,composing=false,destroyed=false,review=null;
  const listeners=[];
  const listen=(type,handler,capture=false)=>{input.addEventListener(type,handler,capture);listeners.push([type,handler,capture]);};
- function context(){return propertyWikiDraft(input.value,input.selectionStart??input.value.length);}
+ function context(){return enabled()?propertyWikiDraft(input.value,input.selectionStart??input.value.length):null;}
  function close(){
   epoch++;if(popup)popup.remove();popup=null;items=[];active=0;
   if(input.getAttribute('aria-controls')===id){if(input.tagName!=='TEXTAREA')input.setAttribute('aria-expanded','false');input.removeAttribute('aria-controls');input.removeAttribute('aria-activedescendant');}
@@ -26,7 +26,7 @@ export function attachPropertyWikiPicker(input,field,{getLinkSuggestions,onError
   else{popup.style.top='8px';popup.style.bottom='auto';}
  }
  function mount(){
-  if(popup)return;popup=document.createElement('div');popup.id=id;popup.className='wv-property-wiki-menu';popup.setAttribute('role','listbox');popup.setAttribute('aria-label','Выбор заметки для свойства');document.body.appendChild(popup);
+  if(popup)return;popup=document.createElement('div');popup.id=id;popup.className='wv-property-wiki-menu';popup.setAttribute('role','listbox');popup.setAttribute('aria-label',menuLabel);document.body.appendChild(popup);
   input.setAttribute('aria-controls',id);if(input.tagName!=='TEXTAREA')input.setAttribute('aria-expanded','true');
   window.addEventListener('scroll',position,true);window.addEventListener('resize',position);window.addEventListener('webvault:catalog-invalidated',invalidate);
   observer=new MutationObserver(()=>{if(!input.isConnected||input.closest('[hidden]')||document.activeElement!==input)close();});observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['hidden']});
@@ -37,7 +37,7 @@ export function attachPropertyWikiPicker(input,field,{getLinkSuggestions,onError
   if(node){input.setAttribute('aria-activedescendant',node.id);if(node.offsetTop<popup.scrollTop)popup.scrollTop=node.offsetTop;else if(node.offsetTop+node.offsetHeight>popup.scrollTop+popup.clientHeight)popup.scrollTop=node.offsetTop+node.offsetHeight-popup.clientHeight;}
  }
  function choose(path){
-  if(destroyed||!input.isConnected){close();return;}
+  if(destroyed||!input.isConnected||!enabled()){close();return;}
   try{
    if(!snapshot||!snapshot.isCurrent())throw new Error('Каталог изменился. Выберите заметку заново.');
    const draft=propertyLinkDraft(input.value,input.selectionStart??input.value.length,path),chosen=snapshot;
@@ -73,7 +73,7 @@ export function attachPropertyWikiPicker(input,field,{getLinkSuggestions,onError
  function validate(report=true){
   if(input.value===initial&&!review){input.setCustomValidity('');return true;}
   try{
-   validatePropertyLinks(input.value);
+   validateValue(input.value);
    if(review&&input.value.slice(review.open).startsWith('[['+review.target)&&!review.snapshot.isCurrent())throw new Error('Каталог изменился. Поставьте курсор в адрес до | и выберите заметку заново.');
    input.setCustomValidity('');return true;
   }catch(error){input.setCustomValidity(error.message);if(report)onError(error.message);return false;}
