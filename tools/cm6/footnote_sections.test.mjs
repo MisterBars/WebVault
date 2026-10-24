@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {groupFootnotesBySection,flashFootnoteTarget} from './footnote_sections.js';
+const note=(number,...positions)=>({number,references:positions.map(from=>({from,to:from+4}))});
+const headings=[{from:10,to:99,level:2},{from:100,to:200,level:2}];
+test('notes go to the end of their own sibling section',()=>{const g=groupFootnotesBySection([note(1,20),note(2,120)],headings,200);assert.deepEqual(g.map(x=>[x.end,x.notes.map(n=>n.number)]),[[99,[1]],[200,[2]]]);});
+test('nested note belongs to nearest heading, parent retains its full section end',()=>{const h=[{from:0,to:99,level:1},{from:20,to:59,level:2},{from:60,to:99,level:2}],g=groupFootnotesBySection([note(1,5),note(2,30),note(3,70)],h,99);assert.deepEqual(g.map(x=>[x.section.from,x.end,x.notes.map(n=>n.number)]),[[20,59,[2]],[60,99,[3]],[0,99,[1]]]);});
+test('preamble notes precede first heading, heading-free documents use EOF',()=>{assert.equal(groupFootnotesBySection([note(1,2)],headings,200)[0].end,9);assert.equal(groupFootnotesBySection([note(1,2)],[],50)[0].end,50);});
+test('repeated note in another section is rendered once at first reference and keeps backlinks',()=>{const n=note(1,20,120),g=groupFootnotesBySection([n],headings,200);assert.equal(g.length,1);assert.equal(g[0].section.from,10);assert.equal(g[0].notes[0].references.length,2);});
+test('references inside heading itself belong to that heading',()=>{const g=groupFootnotesBySection([note(1,100)],headings,200);assert.equal(g[0].section.from,100);});
+test('grouping does not reorder inputs or renumber notes',()=>{const h=Object.freeze([...headings].reverse()),n=Object.freeze([note(7,120),note(3,20)]),g=groupFootnotesBySection(n,h,200);assert.deepEqual(g.map(x=>x.notes[0].number),[3,7]);assert.equal(h[0].from,100);assert.equal(n[0].number,7);});
+test('empty or incomplete model does not fabricate notes',()=>{assert.deepEqual(groupFootnotesBySection([],headings,200),[]);assert.deepEqual(groupFootnotesBySection([{number:1,references:[]}],headings,200),[]);});
+function element(){const classes=new Set();return {classes,classList:{add:x=>classes.add(x),remove:x=>classes.delete(x)}};}
+test('flash marks the containing paragraph then clears after 1800ms',()=>{const root={},p=element(),target={closest:()=>p};let cb,delay;flashFootnoteTarget(root,target,{schedule:(fn,ms)=>{cb=fn;delay=ms;return 1;},cancel:()=>{}});assert.ok(p.classes.has('wv-footnote-target'));assert.equal(delay,1800);cb();assert.ok(!p.classes.has('wv-footnote-target'));});
+test('a new jump cancels the old flash and stale cleanup cannot clear the new one',()=>{const root={},a=element(),b=element(),callbacks=[],cancelled=[];const options={schedule:fn=>{callbacks.push(fn);return callbacks.length;},cancel:id=>cancelled.push(id)};flashFootnoteTarget(root,a,options);flashFootnoteTarget(root,b,options);assert.deepEqual(cancelled,[1]);assert.ok(!a.classes.size);callbacks[0]();assert.ok(b.classes.has('wv-footnote-target'));callbacks[1]();assert.ok(!b.classes.size);});
+test('separate render roots have independent flash state',()=>{const a=element(),b=element(),callbacks=[],options={schedule:fn=>{callbacks.push(fn);return 1;},cancel:()=>{}};flashFootnoteTarget({},a,options);flashFootnoteTarget({},b,options);callbacks[0]();assert.ok(!a.classes.size);assert.ok(b.classes.size);callbacks[1]();});
+test('DOM stubs without classList safely retain navigation-only behavior',()=>{assert.doesNotThrow(()=>flashFootnoteTarget({},{}));});

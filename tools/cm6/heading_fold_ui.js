@@ -1,3 +1,4 @@
+import {groupFootnotesBySection} from './footnote_sections.js';
 import {parseFootnoteDocument,parseMarkdownFragment} from './markdown_renderer.js';
 import {footnoteReadingBlocks,appendFootnoteList} from './footnote_reading.js';
 export function attachHeadingFold(root,section,folded,onToggle){
@@ -15,16 +16,19 @@ export function attachHeadingFold(root,section,folded,onToggle){
 export function renderHeadingReading({blocks,sections,collapsed,renderTokens,onToggle,onNote}){
  const documentBlock=blocks.find(b=>typeof b.tokens?.[0]?.meta?.wvSourceDocument==='string');
  const plan=documentBlock?parseFootnoteDocument(documentBlock.tokens[0].meta.wvSourceDocument):null;
- const root=renderTokens([],onNote);
+ const root=renderTokens([],onNote),groups=plan?groupFootnotesBySection(plan.footnotes.model.notes,sections,plan.footnotes.text.length):[];let nextGroup=0;
+ function flush(before){while(nextGroup<groups.length&&groups[nextGroup].end<before){const group=groups[nextGroup++];if(group.section&&collapsed.some(s=>group.section.from>=s.from&&group.section.from<=s.to))continue;appendFootnoteList(root,plan.footnotes,onNote,renderTokens,parseMarkdownFragment,{notes:group.notes,includeUnused:false});}}
  for(const block of plan?footnoteReadingBlocks(plan):blocks){
+  flush(block.from);
   if(block.synthetic)continue;
   if(collapsed.some(s=>block.from>s.from&&block.from<=s.to))continue;
   const piece=renderTokens(block.tokens,onNote),section=sections.find(s=>s.from===block.from);
   if(section)attachHeadingFold(piece,section,collapsed.some(s=>s.from===section.from),onToggle);
   while(piece.firstChild)root.appendChild(piece.firstChild);
  }
- if(plan)appendFootnoteList(root,plan.footnotes,onNote,renderTokens,parseMarkdownFragment);
- if(typeof window!=='undefined')window.__WV_FOOTNOTES_READING_TEST='footnotes-reading-20c';
+ flush(Infinity);
+ if(plan)appendFootnoteList(root,plan.footnotes,onNote,renderTokens,parseMarkdownFragment,{notes:[],includeUnused:true});
+ if(typeof window!=='undefined'){window.__WV_FOOTNOTES_READING_TEST='footnotes-reading-20c';window.__WV_FOOTNOTES_SECTIONS_TEST='footnotes-sections-20d';}
  return root;
 }
 export function installHeadingFoldStyle(){
