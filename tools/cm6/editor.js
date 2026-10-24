@@ -1,3 +1,4 @@
+import {widgetSourceNumber} from './source_widget_number.js';
 import {createNativeText,isNativeTextBlock,nativeHeadingBody} from './native_text.js';
 import {revealAtPoint} from './widget_click.js';
 import {paragraphRows,ensureBreakTails} from './paragraph_preview.js';
@@ -142,10 +143,8 @@ const sourceBlockNumbers = lineNumberWidgetMarker.of(
       return null;
     }
 
-    if(widget.block.synthetic)return null;
-    return new SourceBlockNumber(
-      editor.state.doc.lineAt(block.from).number
-    );
+    const number=widgetSourceNumber(widget.block,editor.state.doc.lineAt(block.from).number);
+    return number===null?null:new SourceBlockNumber(number);
   }
 );
 function decorate(state){
@@ -204,3 +203,4 @@ window.__WV_PROPERTIES_TEST = 'properties-undo-06';
 window.__WV_PARAGRAPH_TEST = 'paragraph-lines-19b';
 window.__WV_WIDGET_CLICK_TEST = 'widget-click-19c';
 window.__WV_NATIVE_TEXT_TEST = 'native-text-19d';
+window.__WV_HR_GUTTER_TEST = 'hr-gutter-19i';
