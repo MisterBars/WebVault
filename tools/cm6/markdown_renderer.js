@@ -1,3 +1,4 @@
+import {stripTaskStampTokens} from './task_stamp_tokens.js';
 import MarkdownIt from 'markdown-it';
 import mark from 'markdown-it-mark';
 import {taskForLine} from './task_model.js';
@@ -34,12 +35,12 @@ export function renderTokens(tokens,onNote){
   if(t.type==='inline'){
    const cellTask=t.meta?.wvCellTask,current=cellTask||t.meta?.wvTask;
    if(current){
-    const children=(t.children||[]).slice();children[0]={...children[0],content:children[0].content.replace(/^(?:\[[ xX]\]|[☐☑])[ \t]?/,'')};
+    const children=stripTaskStampTokens(t.children||[],current).slice();children[0]={...children[0],content:children[0].content.replace(/^(?:\[[ xX]\]|[☐☑])[ \t]?/,'')};
     if(!cellTask){const parent=[...stack].reverse().find(e=>e.tagName==='LI')||top();parent.classList.add('wv-task-item');}
     top().appendChild(cellTask?makeTableTaskCheckbox(current):makeTaskCheckbox(current));build(children,top(),current);if(current.checked&&current.stamp&&!current.invalid)top().appendChild(cellTask?makeTableTaskTime(current.stamp.iso):makeTaskTime(current.stamp.iso));
    }else build(t.children||[],top());continue;
   }
-  if(t.type==='text'){let text=t.content;if(task?.stamp&&!task.invalid)text=text.replace(task.stamp.raw,'');top().appendChild(document.createTextNode(text));continue;}
+  if(t.type==='text'){top().appendChild(document.createTextNode(t.content));continue;}
   if(t.type==='softbreak'){top().appendChild(document.createElement('br'));continue;}
   if(t.type==='hardbreak'||t.type==='hr'){top().appendChild(document.createElement(t.type==='hr'?'hr':'br'));continue;}
   if(t.type==='code_inline'||t.type==='fence'||t.type==='code_block'){const code=document.createElement('code');code.textContent=t.content;if(t.type==='code_inline')top().appendChild(code);else{const pre=document.createElement('pre');pre.appendChild(code);top().appendChild(pre);}continue;}

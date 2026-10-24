@@ -1,7 +1,9 @@
+import {attachTableDelete} from './table_delete_ui.js';
 import {Transaction} from '@codemirror/state';
 import {isolateHistory} from '@codemirror/commands';
 import {TABLE_ALIGNMENTS,tableAlignment,tableAlignmentChange} from './table_alignment_model.js';
 export function attachTableAlignment(root,table,view,{canWrite,canStart,finishDraft,message}){
+ attachTableDelete(root,table,view,{canWrite,canStart,finishDraft,message});
  root.classList.add('wv-table-with-alignment');
  const headers=Array.from(root.querySelector('table').rows[0].cells);
  function control(column){return Array.from(view.dom.querySelectorAll('[data-wv-table-align-from]')).find(n=>n.dataset.wvTableAlignFrom===String(table.from)&&n.dataset.wvTableAlignColumn===String(column));}
