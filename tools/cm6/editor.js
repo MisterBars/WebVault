@@ -1,3 +1,4 @@
+import {revealAtPoint} from './widget_click.js';
 import {paragraphRows,ensureBreakTails} from './paragraph_preview.js';
 import {createEditableTable,installTableStyle,finishTableDraft,hasTableDraft} from './table_ui.js';
 import {createTableCompletion} from './table_completion.js';
@@ -106,9 +107,10 @@ class BlockWidget extends WidgetType{
   dom.addEventListener('mousedown',e=>{
    if(e.button!==0||e.target.closest('summary,[data-wv-heading-fold]'))return;
    if(e.target.closest('a')&&!e.altKey)return;
-   e.preventDefault();if(area.disabled)return;
+   e.preventDefault();if(area.disabled||editor.state.doc!==expected)return;
    if(this.folded){if(toggleHeading(this.block.from,expected,true))editor.focus();return;}
-   editor.dispatch({selection:{anchor:this.block.from},scrollIntoView:true});editor.focus();
+   const user=app.state.user&&app.state.user.id,path=app.state.note;
+   revealAtPoint(editor,this.block,{x:e.clientX,y:e.clientY},()=>currentMode===1&&!area.disabled&&editor.state.doc===expected&&app.state.note===path&&(app.state.user&&app.state.user.id)===user);
   });
   return dom;
  }
@@ -197,3 +199,4 @@ window.__WV_LAYOUT_TEST = 'layout-padding0-widgetnumbers-02';
 
 window.__WV_PROPERTIES_TEST = 'properties-undo-06';
 window.__WV_PARAGRAPH_TEST = 'paragraph-lines-19b';
+window.__WV_WIDGET_CLICK_TEST = 'widget-click-19c';
