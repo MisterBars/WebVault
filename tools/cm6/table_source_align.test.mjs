@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {sourceWikiContext,sourceWikiInsertion} from './table_source_links.js';
+import {parseTable} from './table_model.js';
+import {tableAlignment,tableAlignmentChange} from './table_alignment_model.js';
+const block=(start,end)=>[{map:[start,end],tokens:[{type:'table_open'}]}];
+test('source table insertion escapes alias and selects only caption',()=>{const s='| A | B |\n| --- | --- |\n| [[ | keep |',pos=s.indexOf('[[')+2,c=sourceWikiContext(s,pos,block(0,3)),r=sourceWikiInsertion('[[/A.md|Shown]]',c.inTable);assert.equal(r.insert,'[[/A.md\\|Shown]]');assert.equal(r.insert.slice(r.selectionStart,r.selectionEnd),'Shown');});
+test('incomplete wiki cannot consume adjacent cell link',()=>{const s='| A | B |\n| --- | --- |\n| [[A | [[B\\|Shown]] |',pos=s.indexOf('[[A')+3,c=sourceWikiContext(s,pos,block(0,3));assert.equal(c.to,pos);assert.equal(c.alias,undefined);assert.equal(s.slice(c.to).includes('[[B'),true);});
+test('existing escaped alias survives path replacement context',()=>{const s='| A | B |\n| --- | --- |\n| [[A\\|Custom]] | x |',pos=s.indexOf('[[A')+3,c=sourceWikiContext(s,pos,block(0,3));assert.equal(c.alias,'Custom');assert.equal(s.slice(c.open,c.to),'[[A\\|Custom]]');});
+test('ordinary paragraph insertion remains unescaped',()=>{const c=sourceWikiContext('[[A]]',3,[]);assert.equal(c.inTable,false);assert.equal(sourceWikiInsertion('[[/A.md|Shown]]',c.inTable).insert,'[[/A.md|Shown]]');});
+test('delimiter row does not offer wiki replacement',()=>{const s='| A | B |\n| [[ | --- |\n| x | y |';assert.equal(sourceWikiContext(s,s.indexOf('[[')+2,block(0,3)),null);});
+test('header rows and tables without outer pipes are detected',()=>{const s='[[A | B\n--- | ---\nx | y',c=sourceWikiContext(s,3,block(0,3));assert.equal(c.inTable,true);assert.equal(c.open,0);});
+test('selection offsets include escaping of caption pipes',()=>{const r=sourceWikiInsertion('[[/A.md|One|Two]]',true);assert.equal(r.insert.slice(r.selectionStart,r.selectionEnd),'One\\|Two');});
+const text='before\n\n| A | B |\n| ----- | :---: |\n| x | y |\n\nafter',from=text.indexOf('| A'),to=text.indexOf('\n\nafter');
+function apply(s,c){return c?s.slice(0,c.from)+c.insert+s.slice(c.to):s;}
+test('alignment edits only selected delimiter and keeps dash width',()=>{const t=parseTable(text,from,to),next=apply(text,tableAlignmentChange(text,t,0,'right'));assert.equal(next,text.replace('| ----- |','| -----: |'));});
+test('all four alignments map correctly',()=>{const t=parseTable(text,from,to);for(const [key,value] of [['default','---'],['left',':---'],['center',':---:'],['right','---:']]){const c=tableAlignmentChange(text,t,1,key),next=apply(text,c),m=parseTable(next,from,to+(c?c.insert.length-(c.to-c.from):0));assert.equal(m.alignment[1],value);assert.equal(tableAlignment(value),key);}});
+test('same alignment is no-op',()=>{assert.equal(tableAlignmentChange(text,parseTable(text,from,to),1,'center'),null);});
+test('stale models, invalid modes and columns reject',()=>{const t=parseTable(text,from,to);assert.throws(()=>tableAlignmentChange(text.replace('| x |','| q |'),t,0,'left'));assert.throws(()=>tableAlignmentChange(text,t,0,'bad'));assert.throws(()=>tableAlignmentChange(text,t,9,'left'));});
+test('CRLF alignment changes preserve other bytes',()=>{const s='| A | B |\r\n| --- | --- |\r\n| x | y |',t=parseTable(s,0,s.length);assert.equal(apply(s,tableAlignmentChange(s,t,1,'center')),s.replace('| --- | --- |','| --- | :---: |'));});

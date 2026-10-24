@@ -1,3 +1,4 @@
+import {attachTableAlignment} from './table_alignment_ui.js';
 import {decodeTablePipes} from './table_link_model.js';
 import {attachTableWikiPicker} from './table_wiki_picker.js';
 import {Transaction} from '@codemirror/state';
@@ -43,17 +44,17 @@ export function createEditableTable(block,view,{renderTokens,onNote,canWrite,can
   cell.addEventListener('mousedown',e=>{if(e.target.closest('input,textarea,a')&&!e.altKey)return;e.preventDefault();e.stopPropagation();cell.wvBeginEdit();});
   cell.addEventListener('click',e=>{if(e.target.closest('a')&&!e.altKey)return;e.preventDefault();e.stopPropagation();if(!e.target.closest('textarea'))cell.wvBeginEdit();});
   cell.addEventListener('keydown',e=>{if(e.target===cell&&(e.key==='Enter'||e.key==='F2')){e.preventDefault();e.stopPropagation();cell.wvBeginEdit();}});
- }));return root;
+ }));attachTableAlignment(root,table,view,{canWrite,canStart,finishDraft:finishTableDraft,message});return root;
 }
 export function installTableStyle(){
  if(document.getElementById('wv-table-style'))return;const s=document.createElement('style');s.id='wv-table-style';s.textContent='.wv-table-cell-editing{padding:0!important}.wv-table-cell-input{display:block;box-sizing:border-box;width:100%;min-width:60px;min-height:32px;margin:0;padding:5px 8px;resize:none;border:1px solid var(--interactive-accent);border-radius:0;background:var(--background-primary);color:var(--text-normal);font:inherit;line-height:inherit;overflow:hidden}.wv-table-status{color:var(--text-error);font:var(--font-ui-small,13px) var(--font-interface,sans-serif)}.wv-table-status:empty{display:none}';document.head.appendChild(s);
  let blockClick=false;
  window.addEventListener('pointerdown',e=>{
-  if(!draft||draft.input.contains(e.target))return;const menu=document.getElementById(draft.input.getAttribute('aria-controls'));if(menu?.contains(e.target))return;const cell=e.target.closest?.('[data-wv-table-cell]'),view=draft.view,from=cell?.dataset.wvTableFrom,row=cell?.dataset.wvRow,column=cell?.dataset.wvColumn;
+  if(!draft||draft.input.contains(e.target))return;if(e.target.closest?.('[data-wv-table-controls]'))return;const menu=document.getElementById(draft.input.getAttribute('aria-controls'));if(menu?.contains(e.target))return;const cell=e.target.closest?.('[data-wv-table-cell]'),view=draft.view,from=cell?.dataset.wvTableFrom,row=cell?.dataset.wvRow,column=cell?.dataset.wvColumn;
   if(!finishTableDraft()){e.preventDefault();e.stopImmediatePropagation();blockClick=true;return;}
   if(cell&&!cell.isConnected){e.preventDefault();e.stopImmediatePropagation();blockClick=true;queueMicrotask(()=>focusTableCell(view,Number(from),Number(row),Number(column)));}
  },true);
  window.addEventListener('click',e=>{if(blockClick){blockClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
  window.addEventListener('beforeunload',e=>{if(draft&&draft.input.value!==draft.input.defaultValue){e.preventDefault();e.returnValue='';}});
- window.__WV_TABLE_TEST='table-links-18b';
+ window.__WV_TABLE_TEST='table-source-align-18c';
 }
