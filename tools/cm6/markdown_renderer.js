@@ -7,6 +7,8 @@ import {parseTable} from './table_model.js';
 import {tableTaskForCell} from './table_task_model.js';
 import {makeTableTaskCheckbox,makeTableTaskTime,installTableTaskStyle} from './table_task_ui.js';
 const md=new MarkdownIt({html:false,breaks:false,linkify:false,typographer:false}).use(mark);
+// Only attribute-free BR tags are supported; raw HTML remains disabled.
+md.inline.ruler.before('html_inline','wv_safe_br',(state,silent)=>{const from=state.pos,m=/^<br[ \t]*\/?>/i.exec(state.src.slice(from));if(!m)return false;if(!silent){const t=state.push('hardbreak','br',0);t.markup=m[0];}state.pos=from+m[0].length;const newline=/^[ \t]*\r?\n/.exec(state.src.slice(state.pos));if(newline)state.pos+=newline[0].length;return true;});
 md.block.ruler.before('hr','wv_frontmatter',(state,start,end,silent)=>{if(start!==0||state.src.slice(state.bMarks[0],state.eMarks[0]).trim()!=='---')return false;let stop=1;while(stop<end&&state.src.slice(state.bMarks[stop],state.eMarks[stop]).trim()!=='---')stop++;if(stop===end)return false;if(silent)return true;const t=state.push('wv_properties','',0);t.map=[0,stop+1];t.content=state.getLines(1,stop,0,false);state.line=stop+1;return true;});
 md.inline.ruler.before('link','wv_wiki',(state,silent)=>{const from=state.pos;if(state.src.slice(from,from+2)!=='[[')return false;const end=state.src.indexOf(']]',from+2);if(end<0||state.src.slice(from,end).includes('\n'))return false;const raw=state.src.slice(from+2,end),split=raw.indexOf('|'),target=split<0?raw:raw.slice(0,split),label=split<0?raw:raw.slice(split+1);if(!target.trim())return false;if(!silent){const t=state.push('wv_wiki','',0);t.content=label;t.meta={target:target.trim()};}state.pos=end+2;return true;});
 export function parseDocument(text){
