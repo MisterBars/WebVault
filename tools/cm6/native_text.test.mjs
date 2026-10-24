@@ -9,9 +9,9 @@ import {parseDocument} from './markdown_renderer.js';
 const blocks=state=>parseDocument(state.doc.toString()).blocks.map(b=>({from:state.doc.line(b.map[0]+1).from,to:state.doc.line(Math.min(b.map[1],state.doc.lines)).to,tokens:b.tokens}));
 function setup(doc,live=true){const native=createNativeText({isLive:()=>live,getBlocks:blocks,getHidden:()=>[]});const state=EditorState.create({doc,selection:{anchor:doc.length},extensions:[createSourceMarkdown(()=>null),native.extension]});return {state,native};}
 function ranges(state,native){const out=[];state.field(native.field).between(0,state.doc.length,(from,to,value)=>out.push({from,to,spec:value.spec}));return out;}
-test('native eligibility excludes special paragraphs but includes code',()=>{
- for(const text of ['ordinary text','**bold**','```js\nx()\n```','    code'])assert.equal(isNativeTextBlock(blocks(EditorState.create({doc:text}))[0]),true,text);
- for(const text of ['[[Note]]','text<br>\nnext','[link](https://example.com)','\\*literal','&amp;','> quote'])assert.equal(isNativeTextBlock(blocks(EditorState.create({doc:text}))[0]),false,text);
+test('native eligibility includes literals and code while keeping special links and BR in fallback',()=>{
+ for(const text of ['ordinary text','**bold**','```js\nx()\n```','    code','\\*literal','&amp;'])assert.equal(isNativeTextBlock(blocks(EditorState.create({doc:text}))[0]),true,text);
+ for(const text of ['[[Note]]','text<br>\nnext','[link](https://example.com)','> quote'])assert.equal(isNativeTextBlock(blocks(EditorState.create({doc:text}))[0]),false,text);
 });
 test('both markers of an active construct become visible without moving selection',()=>{
  const {state,native}=setup('**bold** tail');const hidden=ranges(state,native).filter(r=>!r.spec.class);assert.equal(hidden.length,2);

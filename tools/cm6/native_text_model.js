@@ -2,9 +2,10 @@ export function isNativeTextBlock(block){
  const type=block?.tokens?.[0]?.type;
  if(type==='fence'||type==='code_block')return true;
  if(type!=='paragraph_open'&&type!=='heading_open')return false;
- for(const t of block.tokens){if(t.meta?.wvTask||t.meta?.wvCellTask)return false;if(t.type!=='inline')continue;if(/\\|&(?:#[0-9a-z]+|[a-z]+);/i.test(t.content||''))return false;for(const c of t.children||[])if(['wv_wiki','link_open','image','html_inline'].includes(c.type)||c.type==='hardbreak'&&/^<br/i.test(c.markup||''))return false;}
+ for(const t of block.tokens){if(t.meta?.wvTask||t.meta?.wvCellTask)return false;if(t.type!=='inline')continue;for(const c of t.children||[])if(['wv_wiki','link_open','image','html_inline'].includes(c.type)||c.type==='hardbreak'&&/^<br/i.test(c.markup||''))return false;}
  return true;
 }
 export function markerVisible(ranges,from,to){return ranges.some(r=>r.empty?r.head>=from&&r.head<=to:r.from<to&&r.to>from);}
 export function markerScope(node,names){for(let p=node.parent;p;p=p.parent)if(names.has(p.name))return p;return node;}
 export function nativeHeadingBody(block,section){if(block?.tokens?.[0]?.type!=='heading_open'||!isNativeTextBlock(block)||!section||section.from!==block.from||!Number.isInteger(block.to)||!Number.isInteger(section.to)||section.to<=block.to)return null;return {from:block.to,to:section.to};}
+export function decodeEntity(raw,parse){if(raw.length>64||!/^&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]+);$/i.test(raw))return null;try{const data=parse(raw),children=data.tokens.find(t=>t.type==='inline')?.children;if(data.blocks.length!==1||data.blocks[0].tokens[0]?.type!=='paragraph_open'||children?.length!==1||children[0].type!=='text')return null;const value=children[0].content;return typeof value==='string'&&value!==raw&&!/[\r\n]/.test(value)?value:null;}catch{return null;}}
