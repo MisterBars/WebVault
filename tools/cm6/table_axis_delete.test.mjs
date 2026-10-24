@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {EditorState,Transaction} from '@codemirror/state';
+import {history,undo,redo,isolateHistory} from '@codemirror/commands';
+import {parseTable} from './table_model.js';
+import {tableStructureChange} from './table_structure_model.js';
+import {parseDocument} from './markdown_renderer.js';
+const doc='| A | B | C |\n| --- | :---: | ---: |\n| first | [[A\\|Name]] | ☑ <!--wv-task:2026-10-24T11:00:43.763Z--> |\n| last | plain | ☐ |';
+test('axis deletion is one exact undo and redo operation',()=>{for(const op of [{kind:'delete-row',index:0},{kind:'delete-column',index:1}]){let state=EditorState.create({doc,extensions:[history()]});const view={get state(){return state;},dispatch(spec){state=spec instanceof Transaction?spec.state:state.update(spec).state;}};const result=tableStructureChange(doc,parseTable(doc,0,doc.length),op);view.dispatch({changes:result.change,annotations:[Transaction.userEvent.of('input.table.structure'),isolateHistory.of('full')]});const after=state.doc.toString();assert.ok(undo(view));assert.equal(state.doc.toString(),doc);assert.ok(redo(view));assert.equal(state.doc.toString(),after);}});
+test('single remaining column and header-only table remain actual Markdown tables',()=>{for(const [source,op] of [['A | B\n--- | :---:\nx | y',{kind:'delete-column',index:0}],['| A | B |\n| --- | --- |\n| x | y |',{kind:'delete-row',index:0}]]){const result=tableStructureChange(source,parseTable(source,0,source.length),op),tokens=parseDocument(result.change.insert).tokens;assert.equal(tokens[0].type,'table_open');assert.ok(tokens.some(t=>t.type==='th_open'));}});
