@@ -1,3 +1,4 @@
+import {paragraphRows,ensureBreakTails} from './paragraph_preview.js';
 import {createEditableTable,installTableStyle,finishTableDraft,hasTableDraft} from './table_ui.js';
 import {createTableCompletion} from './table_completion.js';
 import {inlineListRows} from './list_inline_model.js';
@@ -16,7 +17,8 @@ import {basicSetup} from 'codemirror';
 import {EditorState,Compartment,StateField,StateEffect,Transaction} from '@codemirror/state';
 import {EditorView,Decoration,WidgetType,GutterMarker,lineNumberWidgetMarker} from '@codemirror/view';
 import {installModeSlider} from './mode_slider.js';
-import {parseDocument,renderTokens,renderDocument,installMarkdownStyle} from './markdown_renderer.js';
+import {parseDocument,renderTokens as renderRawTokens,renderDocument,installMarkdownStyle} from './markdown_renderer.js';
+const renderTokens=(tokens,onNote)=>ensureBreakTails(renderRawTokens(tokens,onNote));
 import {getNoteIndex,resolveIndexed,installIndexHooks} from './note_index.js';
 import {installGraph} from './graph_view.js';
 import {findFrontmatter,inspectProperties,createPropertiesPanel,installPropertiesStyle} from './properties.js';
@@ -145,7 +147,8 @@ const sourceBlockNumbers = lineNumberWidgetMarker.of(
 function decorate(state){
  if(!state.field(live))return Decoration.none;
  const result=[],sections=headingFolds.sections(state),collapsed=headingFolds.visible(state),text=state.doc.toString();
- for(const b of state.field(parsed)){
+ const previewBlocks=state.field(parsed).flatMap(b=>paragraphRows(text,b,parseDocument)||[b]);
+ for(const b of previewBlocks){
   if(collapsed.some(s=>b.from>s.from&&b.from<=s.to))continue;
   if(inlineListRows(text,b))continue;
   const section=sections.find(s=>s.from===b.from),closed=collapsed.find(s=>s.from===b.from);
@@ -193,3 +196,4 @@ const modes=installModeSlider(i=>{if(!finishTableDraft())return false;currentMod
 window.__WV_LAYOUT_TEST = 'layout-padding0-widgetnumbers-02';
 
 window.__WV_PROPERTIES_TEST = 'properties-undo-06';
+window.__WV_PARAGRAPH_TEST = 'paragraph-lines-19b';
