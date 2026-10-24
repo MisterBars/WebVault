@@ -1,3 +1,4 @@
+import {markHighlight} from './mark_highlight.js';
 import {EditorView} from '@codemirror/view';
 import {syntaxHighlighting} from '@codemirror/language';
 import {tags,tagHighlighter} from '@lezer/highlight';
@@ -6,7 +7,7 @@ export const noteHighlighter=tagHighlighter(HIGHLIGHT_ROLES.map(rule=>{
  if(!tags[rule.tag])throw new Error('Неизвестный highlight tag: '+rule.tag);
  return {tag:tags[rule.tag],class:rule.class};
 }));
-export const noteAppearance=[EditorView.editorAttributes.of({class:'wv-themed-editor'}),syntaxHighlighting(noteHighlighter)];
+export const noteAppearance=[EditorView.editorAttributes.of({class:'wv-themed-editor'}),syntaxHighlighting(noteHighlighter),markHighlight];
 export function installNoteAppearance(){
  if(document.getElementById('wv-note-appearance-style'))return;
  const style=document.createElement('style');style.id='wv-note-appearance-style';style.textContent=NOTE_CSS;document.head.appendChild(style);
@@ -18,4 +19,5 @@ export function installNoteAppearance(){
  window.WebVaultAppearance={refresh,preview:values=>{const changed=preview.apply(values);refresh();return {temporary:true,changed};},resetPreview:()=>{preview.reset();refresh();return true;},status:()=>({editor:computed('.cm-editor.wv-themed-editor .cm-content'),reading:computed('.wv-reading-pane .wv-render'),properties:computed('.wv-properties'),markup:computed('.cm-editor .wv-md-formatting'),drawnSelection:computed('.cm-editor .cm-selectionBackground'),textSelection:getComputedStyle(document.body).getPropertyValue('--text-selection').trim(),formatting:getComputedStyle(document.body).getPropertyValue('--text-formatting').trim(),browserSupport:{hasSelector:CSS.supports('selector(:has(*))'),colorMix:CSS.supports('color','color-mix(in srgb, red, blue)')},themeAdapterActivated:false,rawThemeAppliedByThisKit:false})};
  window.__WV_NOTE_THEME_TEST='note-theme-12';
  window.__WV_NOTE_THEME_FIX_TEST='code-selection-softbreak-12b';
+ window.__WV_SOURCE_MARK_TEST='source-mark-19g';
 }

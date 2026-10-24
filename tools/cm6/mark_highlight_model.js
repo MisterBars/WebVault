@@ -1,0 +1,1 @@
+export function unselectedParts(from,to,ranges){let parts=from<to?[[from,to]]:[];for(const r of ranges){if(r.empty||r.from>=r.to)continue;parts=parts.flatMap(([a,b])=>r.to<=a||r.from>=b?[[a,b]]:[[a,Math.max(a,r.from)],[Math.min(b,r.to),b]].filter(([x,y])=>x<y));}return parts;}
