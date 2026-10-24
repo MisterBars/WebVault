@@ -1,3 +1,4 @@
+import {createNativeText,isNativeTextBlock} from './native_text.js';
 import {revealAtPoint} from './widget_click.js';
 import {paragraphRows,ensureBreakTails} from './paragraph_preview.js';
 import {createEditableTable,installTableStyle,finishTableDraft,hasTableDraft} from './table_ui.js';
@@ -94,6 +95,7 @@ function toggleHeading(from,expectedDoc,editing=false){
 }
 
 const inlineLists=createInlineLists({isLive:state=>state.field(live),getBlocks:state=>state.field(parsed),getHidden:state=>headingFolds.visible(state),onNote:openNote});
+const nativeText=createNativeText({isLive:state=>state.field(live),getBlocks:state=>state.field(parsed),getHidden:state=>headingFolds.visible(state)});
 class PropertiesWidget extends WidgetType{constructor(block){super();this.block=block;}eq(other){return this.block===other.block;}toDOM(editor){const expected=editor.state.doc,user=app.state.user&&app.state.user.id,path=app.state.note;return createPropertiesPanel(expected.toString(),{readOnly:false,onNote:openNote,getSuggestions:propertySuggestions,getNameSuggestions:propertyNameSuggestions,getLinkSuggestions:propertyLinkSuggestions,history:historyBridge&&historyBridge.forCurrentNote(),onCommit:change=>{if(currentMode!==1||area.disabled||area.readOnly||app.isBusy()||!app.state.user||app.state.user.id!==user||app.state.note!==path||editor.state.doc!==expected)throw new Error('Свойства изменились или редактор занят. Повторите действие.');commitPropertyChange(editor,change);},restoreFocus:key=>{const control=Array.from(editor.dom.querySelectorAll('[data-wv-property]')).find(n=>n.dataset.wvProperty===key&&!n.disabled);if(control)control.focus();}});}ignoreEvent(){return true;}}
 class BlockWidget extends WidgetType{
  constructor(block,section=null,folded=false){super();this.block=block;this.section=section;this.folded=folded;}
@@ -152,6 +154,7 @@ function decorate(state){
  const previewBlocks=state.field(parsed).flatMap(b=>paragraphRows(text,b,parseDocument)||[b]);
  for(const b of previewBlocks){
   if(collapsed.some(s=>b.from>s.from&&b.from<=s.to))continue;
+  if(isNativeTextBlock(b))continue;
   if(inlineListRows(text,b))continue;
   const section=sections.find(s=>s.from===b.from),closed=collapsed.find(s=>s.from===b.from);
   const active=state.selection.ranges.some(r=>r.empty?r.head>=b.from&&r.head<=b.to:r.from<=b.to&&r.to>=b.from);
@@ -189,7 +192,7 @@ function permission(){return [EditorState.readOnly.of(area.disabled||area.readOn
     reading.appendChild(dom);
   }
 }
-function extensions(){return [basicSetup,noteAppearance,wikiLinks.extension,tableCompletion.extension,windowGutters,createSourceMarkdown(findFrontmatter),live,parsed,headingFolds.field,headingFolds.nativeBridge,decorations,inlineLists,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const ranges=[],p=v.state.field(parsed).find(b=>b.properties);if(p&&p.to>p.from)ranges.push(Decoration.replace({}).range(p.from,p.to));for(const section of headingFolds.visible(v.state))ranges.push(Decoration.replace({}).range(section.from,section.to));return Decoration.set(ranges,true);}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));}const foldChanged=u.startState.field(headingFolds.field)!==u.state.field(headingFolds.field);if(currentMode===2&&(u.docChanged||foldChanged))queueMicrotask(()=>{if(currentMode===2)renderReading();});queueMicrotask(()=>historyBridge&&historyBridge.refresh());})];}
+function extensions(){return [basicSetup,noteAppearance,wikiLinks.extension,tableCompletion.extension,windowGutters,createSourceMarkdown(findFrontmatter),live,parsed,headingFolds.field,headingFolds.nativeBridge,decorations,nativeText.extension,inlineLists,sourceBlockNumbers,EditorView.atomicRanges.of(v=>{if(!v.state.field(live))return Decoration.none;const ranges=[],p=v.state.field(parsed).find(b=>b.properties);if(p&&p.to>p.from)ranges.push(Decoration.replace({}).range(p.from,p.to));for(const section of headingFolds.visible(v.state))ranges.push(Decoration.replace({}).range(section.from,section.to));return Decoration.set(ranges,true);}),theme,EditorView.lineWrapping,access.of(permission()),EditorView.contentAttributes.of({'aria-label':'Markdown заметки'}),EditorView.updateListener.of(u=>{if(u.docChanged){nativeValue.set.call(area,u.state.doc.toString());area.dispatchEvent(new Event('input',{bubbles:true}));}const foldChanged=u.startState.field(headingFolds.field)!==u.state.field(headingFolds.field);if(currentMode===2&&(u.docChanged||foldChanged))queueMicrotask(()=>{if(currentMode===2)renderReading();});queueMicrotask(()=>historyBridge&&historyBridge.refresh());})];}
 function stateFor(text){const p=findFrontmatter(text);return EditorState.create({doc:text,selection:{anchor:currentMode===1&&p?p.end:0},extensions:extensions()});}view=new EditorView({state:stateFor(nativeValue.get.call(area)),parent:host});
 Object.defineProperty(area,'value',{configurable:true,get(){return view.state.doc.toString();},set(v){if(!finishTableDraft())throw new Error('Сначала завершите ввод ячейки таблицы.');nativeValue.set.call(area,v);view.setState(stateFor(nativeValue.get.call(area)));if(currentMode===2)renderReading();}});
 for(const [name,descriptor] of [['disabled',nativeDisabled],['readOnly',nativeReadOnly]])Object.defineProperty(area,name,{configurable:true,get(){return descriptor.get.call(area);},set(v){descriptor.set.call(area,v);view.dispatch({effects:access.reconfigure(permission())});}});Object.defineProperty(area,'hidden',{configurable:true,get(){return nativeHidden.get.call(area);},set(v){nativeHidden.set.call(area,v);host.hidden=!!v;}});area.focus=()=>view.focus();area.style.display='none';
@@ -200,3 +203,4 @@ window.__WV_LAYOUT_TEST = 'layout-padding0-widgetnumbers-02';
 window.__WV_PROPERTIES_TEST = 'properties-undo-06';
 window.__WV_PARAGRAPH_TEST = 'paragraph-lines-19b';
 window.__WV_WIDGET_CLICK_TEST = 'widget-click-19c';
+window.__WV_NATIVE_TEXT_TEST = 'native-text-19d';

@@ -1,8 +1,11 @@
 import {markdown} from '@codemirror/lang-markdown';
 import {foldNodeProp} from '@codemirror/language';
+const highlight={resolve:'WVHighlight',mark:'WVHighlightMark'},strike={resolve:'WVStrike',mark:'WVStrikeMark'};
+function paired(name,char,delimiter){return {name,after:'Emphasis',parse(cx,next,pos){if(next!==char||cx.char(pos+1)!==char||cx.char(pos+2)===char||cx.char(pos-1)===char)return -1;const before=cx.slice(pos-1,pos),after=cx.slice(pos+2,pos+3);return cx.addDelimiter(delimiter,pos,pos+2,!/\s|^$/.test(after),!/\s|^$/.test(before));}};}
 export function createSourceMarkdown(findFrontmatter){
  return markdown({extensions:{
-  defineNodes:[{name:'WVFrontmatter',block:true}],
+  defineNodes:[{name:'WVFrontmatter',block:true},'WVHighlight','WVHighlightMark','WVStrike','WVStrikeMark'],
+  parseInline:[paired('WVHighlight',61,highlight),paired('WVStrike',126,strike)],
   props:[foldNodeProp.add({WVFrontmatter:()=>null})],
   parseBlock:[{name:'WVFrontmatter',before:'HorizontalRule',parse(cx,line){
    if(cx.lineStart!==0||cx.parentType().name!=='Document')return false;
