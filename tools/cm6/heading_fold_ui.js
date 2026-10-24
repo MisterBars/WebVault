@@ -1,3 +1,5 @@
+import {parseFootnoteDocument,parseMarkdownFragment} from './markdown_renderer.js';
+import {footnoteReadingBlocks,appendFootnoteList} from './footnote_reading.js';
 export function attachHeadingFold(root,section,folded,onToggle){
  if(!section||!section.hasBody)return;
  installHeadingFoldStyle();
@@ -11,14 +13,18 @@ export function attachHeadingFold(root,section,folded,onToggle){
  button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();onToggle(section.from);});heading.prepend(button);
 }
 export function renderHeadingReading({blocks,sections,collapsed,renderTokens,onToggle,onNote}){
+ const documentBlock=blocks.find(b=>typeof b.tokens?.[0]?.meta?.wvSourceDocument==='string');
+ const plan=documentBlock?parseFootnoteDocument(documentBlock.tokens[0].meta.wvSourceDocument):null;
  const root=renderTokens([],onNote);
- for(const block of blocks){
+ for(const block of plan?footnoteReadingBlocks(plan):blocks){
   if(block.synthetic)continue;
   if(collapsed.some(s=>block.from>s.from&&block.from<=s.to))continue;
   const piece=renderTokens(block.tokens,onNote),section=sections.find(s=>s.from===block.from);
   if(section)attachHeadingFold(piece,section,collapsed.some(s=>s.from===section.from),onToggle);
   while(piece.firstChild)root.appendChild(piece.firstChild);
  }
+ if(plan)appendFootnoteList(root,plan.footnotes,onNote,renderTokens,parseMarkdownFragment);
+ if(typeof window!=='undefined')window.__WV_FOOTNOTES_READING_TEST='footnotes-reading-20c';
  return root;
 }
 export function installHeadingFoldStyle(){
