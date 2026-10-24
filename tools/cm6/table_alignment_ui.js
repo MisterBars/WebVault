@@ -1,3 +1,4 @@
+import {attachTableStructure} from './table_structure_ui.js';
 import {attachTableDelete} from './table_delete_ui.js';
 import {Transaction} from '@codemirror/state';
 import {isolateHistory} from '@codemirror/commands';
@@ -36,4 +37,5 @@ export function attachTableAlignment(root,table,view,{canWrite,canStart,finishDr
   tools.addEventListener('focusout',()=>queueMicrotask(()=>{if(!tools.contains(document.activeElement))close();}));
  });
  if(!document.getElementById('wv-table-align-style')){const s=document.createElement('style');s.id='wv-table-align-style';s.textContent='.wv-table-with-alignment{padding-top:22px!important}.wv-table-with-alignment th{position:relative}.wv-table-column-tools{position:absolute;right:2px;top:-21px;opacity:0;pointer-events:none;font:var(--font-ui-small,13px) var(--font-interface,sans-serif)}th:hover>.wv-table-column-tools,.wv-table-column-tools:focus-within{opacity:1;pointer-events:auto}.wv-table-column-tools>button{margin:0;padding:0 6px;min-height:18px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-s,4px);background:var(--background-primary);color:var(--text-muted);cursor:pointer}.wv-table-align-menu{position:absolute;top:100%;right:0;z-index:40;min-width:160px;padding:4px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-m,6px);background:var(--background-primary);color:var(--text-normal)}.wv-table-align-menu button{display:block;width:100%;margin:0;padding:5px 8px;border:0;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}.wv-table-align-menu button:hover,.wv-table-align-menu button:focus,.wv-table-align-menu [aria-checked=true]{background:var(--background-modifier-hover)}';document.head.appendChild(s);}
+ attachTableStructure(root,table,view,{canWrite,canStart,finishDraft,message});
 }
