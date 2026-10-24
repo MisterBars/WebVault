@@ -1,3 +1,4 @@
+import {wrapTableHandle} from './table_hover_ui.js';
 import {Transaction} from '@codemirror/state';
 import {isolateHistory} from '@codemirror/commands';
 import {tableStructureChange,dropMoveIndex} from './table_structure_model.js';
@@ -19,7 +20,7 @@ export function attachTableStructure(root,table,view,{canWrite,canStart,finishDr
   try{const result=tableStructureChange(view.state.doc.toString(),table,op);if(!result)return;view.dispatch({changes:result.change,annotations:[Transaction.userEvent.of('input.table.structure'),isolateHistory.of('full')]});queueMicrotask(()=>{focus(result,op,how);view.requestMeasure();});}catch(error){message(error.message);}
  }
  function handle(cell,axis,index){
-  const node=document.createElement('span');node.className=axis==='row'?'wv-table-row-handle':'wv-table-column-handle';node.textContent='⋮⋮';node.draggable=true;node.tabIndex=0;node.dataset.wvTableControls='true';node.dataset.wvStructureAxis=axis;node.dataset.wvStructureIndex=String(index);node.setAttribute('role','button');node.setAttribute('aria-grabbed','false');node.title=(axis==='row'?'Переместить строку данных ':'Переместить столбец ')+(index+1)+(axis==='row'?' (Alt+↑/↓)':' (Alt+←/→)');node.setAttribute('aria-label',node.title);cell.appendChild(node);
+  const node=document.createElement('span');node.className=axis==='row'?'wv-table-row-handle':'wv-table-column-handle';node.textContent='⋮⋮';node.draggable=true;node.tabIndex=0;node.dataset.wvTableControls='true';node.dataset.wvStructureAxis=axis;node.dataset.wvStructureIndex=String(index);node.setAttribute('role','button');node.setAttribute('aria-grabbed','false');node.title=(axis==='row'?'Переместить строку данных ':'Переместить столбец ')+(index+1)+(axis==='row'?' (Alt+↑/↓)':' (Alt+←/→)');node.setAttribute('aria-label',node.title);wrapTableHandle(cell,node,axis);
   node.addEventListener('mousedown',e=>e.stopPropagation());node.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
   node.addEventListener('dragstart',e=>{e.stopPropagation();if(!ready()){e.preventDefault();return;}drag={axis,from:index,doc:view.state.doc};node.setAttribute('aria-grabbed','true');if(e.dataTransfer){e.dataTransfer.setData('application/x-webvault-table-structure','move');e.dataTransfer.effectAllowed='move';}});
   node.addEventListener('dragend',()=>{clear();drag=null;});

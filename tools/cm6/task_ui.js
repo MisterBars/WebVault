@@ -3,14 +3,14 @@ import {isolateHistory} from '@codemirror/commands';
 import {toggleTaskChanges,localTaskTime} from './task_model.js';
 export function makeTaskCheckbox(task,view=null,guard=()=>true,changesForTask=toggleTaskChanges){
  const node=document.createElement('input');node.type='checkbox';node.className='wv-task-checkbox';node.checked=task.checked;node.setAttribute('aria-label',task.checked?'Снять отметку задачи':'Отметить задачу');
- const core=typeof window!=='undefined'&&window.WebVaultCore,cm=typeof window!=='undefined'&&window.WebVaultCM6;view=view||cm?.view;
- const expected=view?.state.doc,user=core?.state.user?.id,path=core?.state.note;
- function ready(){const history=window.WebVaultHistory?.status();return !!(node.isConnected&&!node.closest('[hidden]')&&view&&view===window.WebVaultCM6?.view&&view.state.doc===expected&&core?.state.user?.id===user&&core?.state.note===path&&history?.writable&&!history.blockedByDraft&&!view.state.readOnly&&[1,2].includes(window.WebVaultCM6?.modes.mode)&&guard());}
- node.disabled=task.invalid||!view||!core;
+ const host=typeof window==='undefined'?null:window,core=host?.WebVaultCore??null,cm=host?.WebVaultCM6??null;view=view||cm?.view;
+ const expected=view?.state?.doc,user=core?.state?.user?.id,path=core?.state?.note;
+ function ready(){const history=host?.WebVaultHistory?.status?.();return !!(node.isConnected&&!node.closest('[hidden]')&&expected&&user!=null&&path&&view===host?.WebVaultCM6?.view&&view?.state?.doc===expected&&core?.state?.user?.id===user&&core?.state?.note===path&&history?.writable&&!history.blockedByDraft&&!view.state.readOnly&&[1,2].includes(host?.WebVaultCM6?.modes?.mode)&&guard());}
+ node.disabled=!!(task.invalid||!expected||user==null||!path);
  node.addEventListener('mousedown',e=>{e.preventDefault();e.stopPropagation();});
  node.addEventListener('click',e=>{
   e.preventDefault();e.stopPropagation();if(!ready()){node.checked=task.checked;return;}
-  try{const changes=changesForTask(view.state.doc.toString(),task);view.dispatch({changes,annotations:[Transaction.userEvent.of('input.task'),isolateHistory.of('full')]});}catch(error){core.message(error.message);}
+  try{const changes=changesForTask(view.state.doc.toString(),task);view.dispatch({changes,annotations:[Transaction.userEvent.of('input.task'),isolateHistory.of('full')]});}catch(error){core?.message?.(error.message);}
  });
  return node;
 }
