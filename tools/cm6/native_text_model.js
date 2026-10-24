@@ -6,3 +6,4 @@ export function isNativeTextBlock(block){
  return true;
 }
 export function markerVisible(ranges,from,to){return ranges.some(r=>r.empty?r.head>=from&&r.head<=to:r.from<to&&r.to>from);}
+export function markerScope(node,names){for(let p=node.parent;p;p=p.parent)if(names.has(p.name))return p;return node;}
