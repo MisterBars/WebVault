@@ -73,3 +73,12 @@ README теперь краткое текущее состояние и нави
 
 ## Дополнение 23.10.2026: ссылки свойств
 - [property_links.md](property_links.md) — native text/list picker, подпись, shared catalog, Enter/readonly/состояния и ограничения.
+
+## Дополнение 24.10.2026: актуальное продолжение и проверка 01
+- [handoff_2026-10-24_late.md](handoff_2026-10-24_late.md) — текущая передача после принятого 19i, ограничения и полный запуск npm run test:all; сначала читать в следующей беседе.
+- [handoff_2026-10-24.md](handoff_2026-10-24.md) — оба пакета требований Markdown/боковой панели и историческая исходная точка; [handoff_2026-10-22.md](handoff_2026-10-22.md) — более ранняя передача.
+- [markdown_text_19a.md](markdown_text_19a.md), [paragraph_lines_19b.md](paragraph_lines_19b.md), [widget_click_19c.md](widget_click_19c.md) — история кандидатов BR/строк/первого клика; 19c не считать принятым решением.
+- [native_text_19d.md](native_text_19d.md), [native_reveal_19e.md](native_reveal_19e.md), [native_headings_19f.md](native_headings_19f.md) — нативные текст/код/обычные заголовки, раскрытие активной разметки и folding; поздние уточнения имеют приоритет.
+- [source_mark_19g.md](source_mark_19g.md), [native_literals_19h.md](native_literals_19h.md), [hr_gutter_19i.md](hr_gutter_19i.md) — source mark, escape/entities и номер отрисованного разделителя.
+- Табличные этапы: [tables.md](tables.md), [18b](table_links_18b.md), [18c](table_source_align_18c.md), [18d](table_tasks_18d.md), [18e](table_stamp_delete_18e.md), [18f](table_structure_18f.md), [18g](table_hover_host_18g.md), [18h](table_axis_delete_18h.md). Статус конкретного этапа сверять с поздней приёмкой, не по наличию файла.
+Общий next_steps не заменён старым вложением: его репозиторный хвост ещё не прочитан целиком. Новая передача фиксирует локальную очередь текущей беседы, а не полную актуализацию всего backlog. Старый текст указателя сохранён.
