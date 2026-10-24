@@ -4,7 +4,7 @@ import {mkdtempSync,writeFileSync,mkdirSync,rmSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {discoverTests,runAllTests} from './run_all_tests.mjs';
+import {discoverTests,runAllTests,independentTestEnv} from './run_all_tests.mjs';
 function fixture(t){const cwd=mkdtempSync(join(tmpdir(),'webvault tests '));t.after(()=>rmSync(cwd,{recursive:true,force:true}));return cwd;}
 const quiet=cwd=>({cwd,log:()=>{},error:()=>{}});
 const pass="import test from 'node:test';test('fixture pass',()=>{});\n";
@@ -15,7 +15,7 @@ test('discovers immediate test files in stable order and rejects an empty suite'
 });
 test('uses current Node, absolute paths, sequential workers and no shell',t=>{
  const cwd=fixture(t);writeFileSync(join(cwd,'a.test.mjs'),pass);
- assert.equal(runAllTests({...quiet(cwd),spawn:(exe,args,options)=>{assert.equal(exe,process.execPath);assert.deepEqual(args,['--test','--test-concurrency=1',join(cwd,'a.test.mjs')]);assert.equal(options.cwd,cwd);assert.equal(options.shell,false);assert.equal(options.stdio,'inherit');return {status:0};}}),0);
+ assert.equal(runAllTests({...quiet(cwd),spawn:(exe,args,options)=>{assert.equal(exe,process.execPath);assert.deepEqual(args,['--test','--test-concurrency=1',join(cwd,'a.test.mjs')]);assert.equal(options.cwd,cwd);assert.equal(options.shell,false);assert.equal(options.stdio,'inherit');assert.notEqual(options.env,process.env);assert.ok(!Object.keys(options.env).some(key=>key.toUpperCase()==='NODE_TEST_CONTEXT'));return {status:0};}}),0);
 });
 test('preserves child failures and rejects startup errors, signals or missing exit code',t=>{
  const cwd=fixture(t);writeFileSync(join(cwd,'a.test.mjs'),pass);
@@ -23,9 +23,15 @@ test('preserves child failures and rejects startup errors, signals or missing ex
  assert.equal(runAllTests({...quiet(cwd),spawn:()=>{throw Error('spawn');}}),1);
 });
 test('real fixture suite passes and real assertion failure propagates',t=>{
- const cwd=fixture(t);writeFileSync(join(cwd,'a.test.mjs'),pass);writeFileSync(join(cwd,'b.test.mjs'),pass);
- const capture=(exe,args,options)=>spawnSync(exe,args,{...options,stdio:'pipe',encoding:'utf8'});
- assert.equal(runAllTests({...quiet(cwd),spawn:capture}),0);
+ const cwd=fixture(t);writeFileSync(join(cwd,'a.test.mjs'),pass);writeFileSync(join(cwd,'b.test.mjs'),pass);let captured;
+ const capture=(exe,args,options)=>{captured=spawnSync(exe,['--test-reporter=tap',...args],{...options,stdio:'pipe',encoding:'utf8'});return captured;};
+ assert.equal(runAllTests({...quiet(cwd),spawn:capture}),0,captured?.stderr);
+ assert.match(captured.stdout,/fixture pass/);assert.match(captured.stdout,/# tests 2\b/);assert.doesNotMatch(captured.stderr,/skipping running files/);
  writeFileSync(join(cwd,'b.test.mjs'),"import test from 'node:test';test('fixture fails',()=>{throw Error('expected');});\n");
- assert.equal(runAllTests({...quiet(cwd),spawn:capture}),1);
+ assert.equal(runAllTests({...quiet(cwd),spawn:capture}),1,captured?.stderr);
+ assert.match(captured.stdout,/fixture fails/);assert.match(captured.stdout,/# fail 1\b/);assert.doesNotMatch(captured.stderr,/skipping running files/);
+});
+test('independent environment removes only runner context without mutating the parent',()=>{
+ const original={Path:'test-path',NODE_OPTIONS:'--enable-source-maps',NODE_TEST_CONTEXT:'child-v8',node_test_context:'child',WV_TEST:'keep'},before={...original},clean=independentTestEnv(original);
+ assert.deepEqual(clean,{Path:'test-path',NODE_OPTIONS:'--enable-source-maps',WV_TEST:'keep'});assert.deepEqual(original,before);
 });
