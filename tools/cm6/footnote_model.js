@@ -34,3 +34,4 @@ export function resolveFootnotes({definitions=[],references=[],maxNotes=512,maxR
   note.references.push({from:r.from,to:r.to,occurrence:item.occurrence});
  }
  return {definitions:[...catalog.values()],references:resolved,notes,diagnostics};
+}
