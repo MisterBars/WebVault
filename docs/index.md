@@ -1,88 +1,79 @@
-# Указатель документации WebVault
+# Документация WebVault
 
-[README](../README.md). Старые этапы — исторический контекст, последующие уточнения имеют приоритет.
+[README](../README.md) · [Продолжение работы](handoff.md) · [Backlog](next_steps.md) · [История изменений](../CHANGELOG.md)
 
-## Установка/сборка
-- [first_install.md](first_install.md) — IIS/SQL/DataRoot/администратор; база до05.
-- [npm_build.md](npm_build.md) — зависимости/lock/test/build, перенос JS/ошибки.
-- [cm6_setup.md](cm6_setup.md) — первый CM, позже расширен.
-- [deployment.md](deployment.md) — отдельные старые страницы устарели.
-- [TEST_CHECKLIST.md](TEST_CHECKLIST.md) — базовые проверки, дополнять.
-- [SQL](../database/install) — 00–07, при обновлении тольконеприменённые после бэкапа.
+## Как пользоваться
 
-## Аккаунты
-- [account_security.md](account_security.md) — безопасность/06.
-- [session_policy.md](session_policy.md) — приоритетная политика сессий/временного пароля.
-- [password_change.md](password_change.md) — этап смены пароля.
-- [users.md](users.md) — ранние аккаунты.
-- [user_management.md](user_management.md) — управление, дополнено folders_and_purge.
-- [ui_and_users.md](ui_and_users.md) — ранний UI.
+Документы сгруппированы по предмету, не по дате дополнения или номеру патча. Наличие инструкции/коммита не доказывает полный набор тестов, публикацию сайта или поддержку всех контекстов. Ревизия ещё продолжается: [реестр](documentation_migration.md) показывает проверенный охват, остаток и ограничения. История — в changelog, задачи — в backlog; для продолжения сначала читать handoff.md с раздельными очередями документации и проекта.
 
-## Рабочая область/Markdown
-- [properties_panel.md](properties_panel.md) — НОВОЕ: существующие YAML-поля, Save/Reload в CM, корзина внизу со счётчиком; сборка/проверки.
-- [workspace_layout.md](workspace_layout.md) — граф в main/ribbon, Общее/Аккаунт и перенос.
-- [note_graph.md](note_graph.md) — индекс/resolver/лимиты; UI обновлён в workspace_layout.
-- [live_preview_blocks.md](live_preview_blocks.md) — dynamic/read блоки; свойства позже заменены панелью.
-- [editor_autosave.md](editor_autosave.md) — autosave/ранний просмотр.
-- [mode_slider.md](mode_slider.md) — переключатель, старый мост чтения заменён.
-- [unified_window.md](unified_window.md) — index.html/модальные вход и настройки.
-- [theme_compatibility.md](theme_compatibility.md) — темы.
+## Установка, сборка и обновление
 
-## Файлы
-- [note_transfer.md](note_transfer.md) — .md/ZIP; размещение в workspace_layout.
-- [file_vault.md](file_vault.md) — этап хранилища.
-- [folders_and_purge.md](folders_and_purge.md) — папки/удаление владельца07, не корзина заметок.
-- [trash_ui.md](trash_ui.md) — серверные операции корзины.
-- [multi_selection.md](multi_selection.md) — группы/drag; новый ribbon-счётчик в properties_panel.
+- [Новая установка](first_install.md) — IIS, SQL 00–07, DataRoot, конфигурация и первый администратор.
+- [Сборка браузерного JavaScript](npm_build.md) — зависимости/lock, адресные тесты, test:all, build и отдельная браузерная проверка.
+- [Получение и перенос исходников](github_transfer.md) — clone, безопасный fast-forward, локальные изменения и просмотр в VS Code.
+- [SQL-скрипты](../database/install) — на обновлении только подтверждённо неприменённые после бэкапа БД/DataRoot.
+- [Развёртывание](deployment.md), [исходный комплект CM6](cm6_setup.md) — ещё не сведённые источники; старые описания страниц/сборки не заменяют три рабочие инструкции выше. Уникальные ограничения сохраняются до переноса.
 
-## Архитектура/план
-- [API_OVERVIEW.md](API_OVERVIEW.md) — API этапа, новые возможности сверять с кодом.
-- [db_schema.md](db_schema.md) — схема, сверять SQL.
-- [application_design.md](application_design.md) — проектирование.
-- [project_overview.md](project_overview.md) — ранний снимок, текущее в README.
-- [ТЗ001](specifications/001-webvault-v0.1.md), [ТЗ002](specifications/002-editor-files-and-accounts.md) — требования.
-- [next_steps.md](next_steps.md) — актуализированные следующие задачи, включая дальнейшие настройки графа по образцу Obsidian.
+## Аккаунты и безопасность
 
-Новые документы добавлять с назначением; старую политику/размещение явно связывать с заменяющей инструкцией.
+- [Политика сессий](session_policy.md) — сессии, временный пароль и правила доступа.
+- [Аккаунт и сброс пароля](account_security.md), [смена пароля](password_change.md), [управление пользователями](user_management.md).
+- [Ранние аккаунты](users.md), [ранний UI пользователей](ui_and_users.md) — источники для консолидации, не самостоятельные доказательства текущего поведения.
+- [Удаление владельца с файлами](folders_and_purge.md) — отличать от корзины заметок; сохранить ограничения необратимой/частичной очистки.
 
+## Файлы, корзина и перенос заметок
 
-## Дополнение 22.10.2026: история и актуальный контракт оформления
-- [CHANGELOG](../CHANGELOG.md) — пользовательская история принятых изменений, отдельно от README/задач.
-- [Правила changelog](changelog/README.md), [октябрь 2026](changelog/2026-10.md), [архив прежнего README](changelog/archive/README_2026-10-22.txt).
-- [theme_contract.md](theme_contract.md) — актуальная карта реальных DOM/CSS/токенов; исторические уточнения theme_compatibility.md сохранены.
-README теперь краткое текущее состояние и навигация. Подробный дневник патчей в него больше не добавлять. Старые задачи/инструкции этим разделением не удаляются.
+- [Файловое хранилище](file_vault.md), [папки и purge](folders_and_purge.md).
+- [Корзина](trash_ui.md), [групповые операции и выделение](multi_selection.md).
+- [Импорт/экспорт Markdown и ZIP](note_transfer.md).
+- Размещение элементов интерфейса: [рабочая область](workspace_layout.md), [панель свойств](properties_panel.md). Эти источники ещё требуют сведения, их старые статусы не считать актуальными автоматически.
 
+## Рабочая область и редактор
 
-## Дополнение 22.10.2026: исходная нумерация
-- [editor_gutters.md](editor_gutters.md) — положение gutter у левого края, реальный DOM/CSS-контракт, измерения и ограничения; не folding в reading.
+- [Единое окно](unified_window.md), [раскладка рабочей области](workspace_layout.md).
+- [Общая прокрутка](note_scrolling.md), [автосохранение](editor_autosave.md), [переключение режимов](mode_slider.md).
+- [Markdown и preview](live_preview_blocks.md), [исходные номера](editor_gutters.md), [разделы заголовков и folding](heading_folding.md).
+- [Сноски](footnotes.md) — единое предметное руководство: запись, нумерация, source ranges, reading/dynamic, группы определений, ограничения, API и проверки. Прежние пять документов этапов удалены; исторические источники закреплены в changelog на конкретной Git-ревизии.
+- [Wiki-ссылки](wiki_links.md), [ссылки свойств](property_links.md), [inline-списки](list_inline.md).
+- [Свойства](properties_panel.md), [удаление свойства](property_removal.md).
+- [Таблицы](tables.md).
 
+### Ещё не сведённые источники редактора
 
-## Дополнение 22.10.2026: разделы заголовков
-- [heading_folding.md](heading_folding.md) — сворачивание разделов dynamic/reading/source, исключение YAML из source fold, view-only состояние и ограничения первого этапа.
+Эти файлы остаются для переноса уникальных контрактов, ограничений, задач и проверок. История 19a–19i уже внесена в changelog; наличие файла/метки не означает готовности кандидата, особенно решения первого клика 19c. Нативные текст/код/обычные заголовки не возвращать к BlockWidget ради косметики.
 
+- Текст и курсор: [BR](markdown_text_19a.md), [строки абзаца](paragraph_lines_19b.md), [эксперимент первого клика](widget_click_19c.md), [нативный текст](native_text_19d.md), [раскрытие разметки](native_reveal_19e.md), [нативные заголовки](native_headings_19f.md), [source mark](source_mark_19g.md), [escape/entities](native_literals_19h.md), [номер HR](hr_gutter_19i.md).
+- Ссылки/списки: [уточнение wiki-ссылок](wiki_links_15a.md), [уточнение списков](list_inline_17b.md).
+- Таблицы: [ссылки](table_links_18b.md), [source и выравнивание](table_source_align_18c.md), [задачи](table_tasks_18d.md), [метаданные и удаление](table_stamp_delete_18e.md), [структура](table_structure_18f.md), [hover](table_hover_host_18g.md), [удаление осей](table_axis_delete_18h.md). Браузерный статус 18h не выводить из наличия коммита.
 
-## Дополнение 22.10.2026: текст и совместимость тем
-- [note_appearance.md](note_appearance.md) — CM/DOM selection, синтаксис и шрифтовые роли, диагностика/проверки.
-- [theme_adapter.md](theme_adapter.md) — реализованная основа и границы будущего адаптера.
-- [Minimal 8.1.7](themes/minimal-8.1.7.md), [машинный аудит](themes/minimal-8.1.7.audit.json) — разбор пользовательского CSS, не установленная тема.
+## Индекс, граф и оформление
 
+- [Индекс и граф заметок](note_graph.md) — resolver, лимиты и ограничения; размещение UI также описано в workspace_layout. Дальнейшие настройки графа сохраняются в backlog.
+- [DOM/CSS-контракт](theme_contract.md) — карта элементов и токенов для оформления.
+- [Внешний вид текста](note_appearance.md), [адаптер тем](theme_adapter.md).
+- [Совместимость тем](theme_compatibility.md) — ещё не сведённые исторические уточнения; проверять по текущему контракту и реализации.
+- [Аудит Minimal 8.1.7](themes/minimal-8.1.7.md), [машинные данные](themes/minimal-8.1.7.audit.json) — анализ CSS, не подключённая целиком тема и не гарантия совместимости.
 
-## Дополнение 23.10.2026: wiki-ссылки
-- [wiki_links.md](wiki_links.md) — [[ menu, однозначный путь, подпись и клик; границы первого этапа и следующий inline-список/checkbox.
+## Архитектура, API, БД и требования
 
+- [API](API_OVERVIEW.md), [схема БД](db_schema.md) — требуют сверки с текущими обработчиками и SQL, не полные автоматически актуальные контракты.
+- [Проектирование](application_design.md), [ранний обзор проекта](project_overview.md) — отделять требования/снимки от реализации; краткое назначение проекта в README.
+- [ТЗ 001](specifications/001-webvault-v0.1.md), [ТЗ 002](specifications/002-editor-files-and-accounts.md) — источники долгосрочных требований, не отчёты готовности.
+- [Backlog](next_steps.md) — сохраняет требования, но полная актуализация ещё не завершена. Не считать пропущенный в коротком handoff пункт отменённым.
 
-## Дополнение 23.10.2026: ссылки свойств
-- [property_links.md](property_links.md) — native text/list picker, подпись, shared catalog, Enter/readonly/состояния и ограничения.
+## Тестирование
 
-## Дополнение 24.10.2026: актуальное продолжение и проверка 01
-- [handoff_2026-10-24_late.md](handoff_2026-10-24_late.md) — текущая передача после принятого 19i, ограничения и полный запуск npm run test:all; сначала читать в следующей беседе.
-- [handoff_2026-10-24.md](handoff_2026-10-24.md) — оба пакета требований Markdown/боковой панели и историческая исходная точка; [handoff_2026-10-22.md](handoff_2026-10-22.md) — более ранняя передача.
-- [markdown_text_19a.md](markdown_text_19a.md), [paragraph_lines_19b.md](paragraph_lines_19b.md), [widget_click_19c.md](widget_click_19c.md) — история кандидатов BR/строк/первого клика; 19c не считать принятым решением.
-- [native_text_19d.md](native_text_19d.md), [native_reveal_19e.md](native_reveal_19e.md), [native_headings_19f.md](native_headings_19f.md) — нативные текст/код/обычные заголовки, раскрытие активной разметки и folding; поздние уточнения имеют приоритет.
-- [source_mark_19g.md](source_mark_19g.md), [native_literals_19h.md](native_literals_19h.md), [hr_gutter_19i.md](hr_gutter_19i.md) — source mark, escape/entities и номер отрисованного разделителя.
-- Табличные этапы: [tables.md](tables.md), [18b](table_links_18b.md), [18c](table_source_align_18c.md), [18d](table_tasks_18d.md), [18e](table_stamp_delete_18e.md), [18f](table_structure_18f.md), [18g](table_hover_host_18g.md), [18h](table_axis_delete_18h.md). Статус конкретного этапа сверять с поздней приёмкой, не по наличию файла.
-Общий next_steps не заменён старым вложением: его репозиторный хвост ещё не прочитан целиком. Новая передача фиксирует локальную очередь текущей беседы, а не полную актуализацию всего backlog. Старый текст указателя сохранён.
+- [Базовый чек-лист](TEST_CHECKLIST.md) — ещё требует консолидации с профильными сценариями.
+- [Команды и условия остановки](npm_build.md) — сокращённый npm test не заменяет test:all; browser проверяется отдельно.
+- [Сценарии сносок](footnotes.md) — адресные тесты и ручная регрессия, не заявление о выполненном прогоне.
+- [Источник исправления runner и происхождения backlog](test_all_19j_fix.md) — история перенесена в changelog, технический источник пока сохранён.
 
-## Уточнение 24.10.2026: первый полный прогон и идентичность next_steps
-- [test_all_19j_fix.md](test_all_19j_fix.md) — результат 326/325/1, воспроизведённая причина вложенного runner, усиленная проверка и исправление сведений о next_steps. Читать вместе с поздней передачей; это уточнение имеет приоритет над прежними ошибочными выводами.
-Утверждение выше и в прежних handoff о «старом вложении/неполученном репозиторном хвосте» отозвано: после CRLF→LF Git blob SHA вложения точно совпал с актуальным docs/next_steps.md в main (f3206da52316fb3674f08b7f2d034e1b23431840). Документ действительно заканчивается property-links-14, отстаёт сам backlog, а не предоставленный пользователем файл. Повторно просить вложение не нужно. Сам next_steps пока не изменён, последующая актуализация только дополняет его.
+Ранее предоставленный next_steps совпадал с репозиторным после CRLF→LF; он заканчивается property-links-14. Отставал сам backlog, а не вложение. Не запрашивать его повторно из-за обрезанного ответа коннектора и не повторять отозванный вывод о потерянном хвосте. Детали идентификации сохранены в канонической истории.
+
+## История и продолжение
+
+- [История изменений](../CHANGELOG.md), [октябрь 2026](changelog/2026-10.md), [единые правила](changelog/README.md).
+- [Замороженный прежний README](changelog/archive/README_2026-10-22.txt) — исторический оригинал, не актуальная инструкция; checksum ещё требует вычислительной проверки.
+- [Актуальное продолжение](handoff.md) — единый вход и очереди D/P.
+- Прежние передачи: [22 октября](handoff_2026-10-22.md), [24 октября](handoff_2026-10-24.md), [поздняя 24 октября](handoff_2026-10-24_late.md), [25 октября](handoff_2026-10-25.md). Они временно сохраняются как источники до проверки полного переноса требований, включая оба пакета Markdown/боковой панели, не задают конкурирующие очереди.
+- [Реестр миграции](documentation_migration.md) — временный контроль ревизии; не дополнительное постоянное руководство или changelog.
