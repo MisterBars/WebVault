@@ -1,32 +1,19 @@
-# Перенос WebVault между компьютерами — краткая актуальная инструкция
+# Перенос исходников и обновление рабочей копии
 
-Репозиторий `MisterBars/WebVault`, ветка `main`. Сборка/публикация идут отдельно от личных данных.
+[README](../README.md) · [Указатель](index.md) · [Сборка и проверки](npm_build.md) · [Установка IIS/SQL](first_install.md)
 
-## Короткий чек-лист
+## Что переносится
 
-1. **Выяснить, что переносим.** Git переносит только закоммиченные файлы. Рабочий сайт требует отдельно перенести web bundle; DataRoot, настоящие заметки, SQL, ACL и рабочий Web.config не синхронизируются через Git.
-2. **Проверить локальный clone.** Открыть D:\project\WebVault, проверить ветку main, HEAD и git status. Если есть M/A/D/?? или staged файлы, не делать pull/merge, reset --hard или clean; сохранить их и разобраться с diff.
-3. **Обновить исходники.** На чистом main выполнить git fetch origin, затем git merge --ff-only origin/main. Если fast-forward не проходит, остановиться и разобрать расхождение.
-4. **Собрать JavaScript только на ПК сборки.** Проверить tools/cm6/package.json и package-lock.json. Для чистой установки использовать npm ci только при согласованном lock, затем npm test, отдельные тесты комплекта и npm run build; при любой ошибке остановиться.
-5. **Опубликовать на IIS отдельно.** Сохранить заметки; сделать backup web root, БД и DataRoot; сохранить конкретный рабочий Web.config и ACL. Перенести согласованные src/WebVault.Web assets, bundle и handlers. Не подменять DataRoot/БД и не копировать корень Git.
-6. **Проверить рабочий сайт.** Ctrl+F5, вход, тестовая копия заметки, source/dynamic/reading, свойства/ссылки, undo/autosave. Успешный npm test/build не заменяет браузерную проверку.
+Репозиторий MisterBars/WebVault, ветка main. Git переносит только закоммиченные файлы. Bundle, DataRoot, настоящие заметки/вложения, БД, ACL и рабочий Web.config не считать автоматически перенесёнными. Рабочий сайт, исходники, зависимости и личные данные — разные части установки.
 
-## Если что-то пошло не так
+## Новая копия
 
-- `npm install` сообщает ENOENT package.json: проверить checkout/HEAD, затем `tools/cm6`. Не создавать manifest вручную.
-- `npm ci` сообщает о несовпадающих manifests: не удалять lock; сохранить вывод, сравнить package.json/lock.
-- `main` отстаёт на много commits: `git fetch`, проверить status и fast-forward. Push локальной старой ветки не обновляет checkout.
-- `Access denied`: не удалять `src`/`tools`, не обходить `clean/reset`; проверить занятость IIS/редактором и права, сохранять копию.
-- `NODE_EXTRA_CA_CERTS` указывает на отсутствующий файл: проверить переменную и согласовать корпоративный CA; не отключать `strict-ssl`.
-- `npm audit`: рассматривать конкретный пакет отдельно; не запускать `npm audit fix --force` автоматически.
-- CRLF/UTF-8 warnings: проверить `.gitattributes`, байты и `git diff`; не переформатировать весь проект ради предупреждения.
-
-## Команды clone новой копии
+Clone выполнять только в новую отсутствующую или пустую папку, не поверх существующего checkout/DataRoot:
 
 ```powershell
 Set-Location D:\project
 git clone --branch main --single-branch https://github.com/MisterBars/WebVault.git WebVault
-if ($LASTEXITCODE -ne 0) { throw 'clone failed' }
+if ($LASTEXITCODE -ne 0) { throw 'Clone failed; stop' }
 Set-Location D:\project\WebVault
 git status -sb
 git log -1 --oneline
@@ -34,45 +21,53 @@ Test-Path .\tools\cm6\package.json
 Test-Path .\tools\cm6\package-lock.json
 ```
 
-Clone выполнять только в пустую новую папку. Не поверх существующего checkout/DataRoot.
-
-## Команды обновления существующей копии
+## Существующая копия: сначала сверка
 
 ```powershell
 Set-Location D:\project\WebVault
 git status -sb
+git branch --show-current
+git rev-parse HEAD
+git --no-pager diff --stat
+git --no-pager diff --cached --stat
 git fetch origin
-if ($LASTEXITCODE -ne 0) { throw 'fetch failed' }
+if ($LASTEXITCODE -ne 0) { throw 'Fetch failed; stop' }
 git status -sb
+git rev-parse origin/main
+git --no-pager log --oneline HEAD..origin/main
 ```
 
-Только если status чистый и ветка — main:
+Fetch получает коммиты, но не заменяет рабочие файлы. До merge проверить ветку main, staged/unstaged diff и untracked пути. При любом локальном изменении сначала остановиться и определить его назначение. Не удалять и не добавлять автоматически untracked vendor/; происхождение bundle проверяется отдельно. Даже одинаковая локальная и входящая правка требует сверки, а не предположения об отсутствии конфликта.
+
+После проверки чистоты рабочей базы либо отдельного согласованного сохранения локальных изменений:
 
 ```powershell
 git merge --ff-only origin/main
-if ($LASTEXITCODE -ne 0) { throw 'fast-forward failed; stop' }
+if ($LASTEXITCODE -ne 0) { throw 'Fast-forward failed; stop' }
 git status -sb
 git log -1 --oneline
 ```
 
-## Команды сборки
+Если отчёт комплекта задаёт конкретный SHA, вместо origin/main использовать этот SHA, чтобы не включить непроверенные последующие коммиты. При ошибке остановиться; не применять reset --hard, clean, force push или автоматический stash. Не делать git add . ради синхронизации.
 
-```powershell
-Set-Location D:\project\WebVault\tools\cm6
-node --version
-npm --version
-Test-Path .\package.json
-Test-Path .\package-lock.json
-npm ci
-if ($LASTEXITCODE -ne 0) { throw 'npm ci failed; stop' }
-npm test
-if ($LASTEXITCODE -ne 0) { throw 'npm tests failed; stop before build' }
-node --test *.test.mjs
-if ($LASTEXITCODE -ne 0) { throw 'additional tests failed' }
-npm run build
-if ($LASTEXITCODE -ne 0) { throw 'build failed; keep accepted bundle' }
-Get-Item ..\..\src\WebVault.Web\assets\vendor\webvault-cm6.js |
-    Select-Object FullName, Length, LastWriteTime
-```
+Если локальный файл уже содержит входящее исправление, сначала сравнить его с целевым коммитом, проверить index, сохранить отдельную копию вне репозитория и согласовать точечную синхронизацию. Это не разрешение массового restore или удаления локальных экспериментов.
 
-Для разработки с актуальным `package.json` без согласованного lock сначала остановиться и сверить изменения, а не выполнять `npm ci` вслепую. `node --test *.test.mjs` включает все тесты каталога; если проект добавит тесты, требующие внешних ресурсов, пользоваться точным списком команд профильной инструкции.
+## Сборка, публикация и просмотр
+
+Единый порядок и команды находятся в [npm_build.md](npm_build.md): адресные тесты → npm run test:all → только после успеха npm run build → отдельная публикация и браузерная проверка. Все Node-команды выполняются из D:\project\WebVault\tools\cm6. Повторная установка зависимостей без изменения manifests обычно не нужна; npm ci использовать только для согласованной установки из lock. Сокращённый npm test и shell glob не заменяют штатный полный runner.
+
+Для docs-only читать изменённые документы и diff; сборка и публикация сайта не нужны. Для функционального комплекта сохранить заметки и резервные копии сайта/БД/DataRoot, Web.config и ACL; публиковать только согласованный состав src/WebVault.Web. Не копировать корень Git, docs/tools/node_modules и не подменять данные. Ctrl+F5 и тестовая копия заметки обязательны для отдельной браузерной проверки; успешная сборка её не заменяет.
+
+После каждого обновления сверять фактический HEAD, состав коммита и status. Команды получения/просмотра конкретного комплекта предоставляются вместе с его SHA; тесты, не запускавшиеся на этой базе, не считать пройденными.
+
+## Диагностика
+
+- ENOENT package.json: проверить checkout/HEAD и tools/cm6; не создавать manifest вручную.
+- Несовпадение manifests при npm ci: сохранить вывод, сравнить package.json/lock, не удалять lock.
+- main отстаёт: fetch и проверенный fast-forward; push старой локальной ветки не обновляет checkout.
+- Access denied: проверить занятость IIS/редактором и права, сохранить копию; src/tools не удалять и clean/reset не обходить ошибку.
+- NODE_EXTRA_CA_CERTS указывает на отсутствующий файл: проверить переменную и согласовать корпоративный CA; не отключать strict-ssl.
+- npm audit: рассматривать конкретный пакет отдельно, не выполнять audit fix --force автоматически.
+- CRLF/UTF-8 warnings: проверить наличие/содержимое .gitattributes, байты и diff; не переформатировать весь проект ради предупреждения.
+
+Перенос существующей БД и DataRoot требует согласованных резервных копий и отдельного регламента. Независимые установки не синхронизируются автоматически. Не путать перенос исходников с восстановлением данных или развёртыванием сайта.
