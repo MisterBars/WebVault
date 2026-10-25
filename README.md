@@ -23,7 +23,7 @@
 | Markdown и свойства | [live_preview_blocks](docs/live_preview_blocks.md), [properties_panel](docs/properties_panel.md) |
 | Рабочая область и прокрутка | [workspace_layout](docs/workspace_layout.md), [note_scrolling](docs/note_scrolling.md) |
 | Индекс/граф и перенос заметок | [note_graph](docs/note_graph.md), [note_transfer](docs/note_transfer.md) |
-| Файлы и корзина | [trash_ui](docs/trash_ui.md), [multi_selection](docs/multi_selection.md) |
+| Файлы и корзина | [file_vault](docs/file_vault.md) — хранилище, дерево, выделение, группы, move/rename и корзина |
 | Дизайн и адаптация тем | [Актуальный DOM/CSS-контракт](docs/theme_contract.md), [исторические уточнения](docs/theme_compatibility.md) |
 | История изменений | [CHANGELOG](CHANGELOG.md) |
 | Очередь задач | [next_steps](docs/next_steps.md) — требования, не обещание готовности |
