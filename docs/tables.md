@@ -56,7 +56,7 @@ Source completion в распознанном table-блоке ограниче�
 
 Одна задача в начале ячейки: ☐/☑ или [ ]/[x]/[X], далее допустимы подпись/Markdown. Три ячейки одной строки имеют независимые диапазоны и timestamps. Несколько checkbox в одной ячейке, символ посреди текста, code/escape/wiki-подпись/Markdown-ссылка не становятся задачами только из-за символа.
 
-Dynamic/reading используют настоящий input checkbox. Меняются только символ и suffix выбранной ячейки: <!--wv-task:UTC-ISO-с-миллисекундами-->. Полный UTC хранится в Markdown, локальное время показывается под checkbox, title содержит UTC; у списков время остаётся справа. Снятие удаляет свою отметку, повторное включение создаёт новую. Старый checked без даты и ручное изменение source не получают вымышленного времени; это не аудит.
+Dynamic/reading используют настоящий input checkbox. Меняются только символ и suffix выбранной ячейки: `<!--wv-task:UTC-ISO-с-миллисекундами-->`. Полный UTC хранится в Markdown, локальное время показывается под checkbox, title содержит UTC; у списков время остаётся справа. Снятие удаляет свою отметку, повторное включение создаёт новую. Старый checked без даты и ручное изменение source не получают вымышленного времени; это не аудит.
 
 Символ и время меняются одной input.task/isolateHistory транзакцией; Undo/Redo возвращают ту же дату вместе с состоянием. Соседние ячейки, комментарии, alignment, пробелы, тело/YAML сохраняются. Некорректные/дублированные timestamps отключают контрол до исправления source. Callback проверяет doc/user/path/режим/права/readOnly/busy/черновики, видимый актуальный DOM и совпадение всей source-таблицы.
 
@@ -111,7 +111,7 @@ Runtime-маркеры: __WV_TABLE_TEST='table-source-align-18c', __WV_LINKS_TES
         'table_task_model.test.mjs', 'table_task.test.mjs',
         'list_inline.test.mjs', 'markdown_dom.test.mjs',
         'table_stamp_delete.test.mjs', 'table_stamp_dom.test.mjs',
-        'table_structure.test.mjs', 'table_structure_model.test.mjs',
+        'table_structure.test.mjs',
         'table_axis_delete_model.test.mjs', 'table_axis_delete.test.mjs',
         'table_hover.test.mjs', 'task_ui_host.test.mjs',
         'property_history.test.mjs', 'property_history_policy.test.mjs'
