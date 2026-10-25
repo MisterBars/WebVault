@@ -1,3 +1,4 @@
+import {createFootnoteDefinitionGroups} from './footnote_definition_groups.js';
 export function dynamicFootnoteTarget(ctx,id){if(!ctx||!/^wv-footnote-\d+$/.test(ctx.scope)||typeof id!=='string'||!id.startsWith(ctx.scope+'-'))return null;const value=id.slice(ctx.scope.length+1),m=/^(note|ref)-(\d+)(?:-(\d+))?$/.exec(value);if(!m||m[1]==='note'&&m[3]||m[1]==='ref'&&!m[3])return null;const number=Number(m[2]),occurrence=Number(m[3]);if(!Number.isSafeInteger(number)||number<1||m[1]==='ref'&&(!Number.isSafeInteger(occurrence)||occurrence<1))return null;const note=ctx.model.notes.find(n=>n.number===number);if(!note)return null;const ref=m[1]==='ref'?note.references.find(r=>r.occurrence===occurrence):null;return m[1]==='ref'&&!ref?null:{kind:m[1],note,ref};}
 export function footnoteEditPosition(ctx,number){const note=ctx?.model.notes.find(n=>n.number===number);if(!note)return null;return note.definition?ctx.model.definitionSources.find(d=>d.from===note.definition.from)?.bodyFrom??note.definition.from:note.references[0]?.from+2;}
 import {StateField} from '@codemirror/state';
@@ -9,6 +10,7 @@ import {groupFootnotesBySection,flashFootnoteTarget} from './footnote_sections.j
 function installStyle(){if(document.getElementById('wv-footnote-dynamic-style'))return;const s=document.createElement('style');s.id='wv-footnote-dynamic-style';s.textContent='.wv-footnotes>ol>li>p:last-of-type{display:inline;margin-bottom:0}.wv-footnote-backlinks{display:inline-flex;gap:0.4em;margin-inline-start:0.5em;white-space:nowrap}.wv-footnote-backlinks a{margin-inline-start:0}.wv-footnote-edit{font:inherit;font-size:0.85em;padding:0;border:0;background:transparent;color:var(--text-muted);cursor:pointer}.wv-footnote-edit:disabled{opacity:0.5;cursor:default}';document.head.appendChild(s);}
 export function createDynamicFootnotes(options){
  const {isLive,getBlocks,getSections,getHidden,renderTokens,parseFragment,onNote,onToggle,canNavigate=()=>true,canEdit=()=>true,message=()=>{}}=options;
+ const definitionGroups=createFootnoteDefinitionGroups({isLive,getContext:s=>getBlocks(s).footnotes,getHidden,canNavigate,message});
  class Reference extends WidgetType{constructor(ctx,ref){super();this.ctx=ctx;this.ref=ref;}eq(other){return other instanceof Reference&&other.ctx===this.ctx&&other.ref.from===this.ref.from;}toDOM(){return makeFootnoteReference({scope:this.ctx.scope,number:this.ref.number,occurrence:this.ref.occurrence},this.ctx.text.slice(this.ref.from,this.ref.to));}ignoreEvent(){return false;}}
  class Footer extends WidgetType{
   constructor(ctx,group,disabled){super();this.ctx=ctx;this.group=group;this.disabled=disabled;}
@@ -19,7 +21,6 @@ export function createDynamicFootnotes(options){
  function build(state){
   if(!isLive(state))return Decoration.none;const blocks=getBlocks(state),ctx=blocks.footnotes;if(!ctx)return Decoration.none;const out=[],hidden=getHidden(state),inside=pos=>hidden.some(s=>pos>s.from&&pos<=s.to);
   for(const ref of ctx.model.references){if(ref.status!=='resolved'||inside(ref.from)||markerVisible(state.selection.ranges,ref.from,ref.to))continue;const host=blocks.find(b=>ref.from>=b.from&&ref.to<=b.to);if(host&&(isNativeTextBlock(host)||inlineListRows(ctx.text,host)))out.push(Decoration.replace({widget:new Reference(ctx,ref),inclusive:false,footnoteRole:'reference'}).range(ref.from,ref.to));}
-  const used=new Set(ctx.model.notes.filter(n=>n.definition).map(n=>n.definition.from));for(const d of ctx.model.definitionSources)if(used.has(d.from)&&!inside(d.from)&&!markerVisible(state.selection.ranges,d.from,d.to))out.push(Decoration.replace({block:true,inclusive:false,footnoteRole:'definition'}).range(d.from,d.to));
   let side=100;for(const group of groupFootnotesBySection(ctx.model.notes,getSections(state),state.doc.length)){if(group.section&&hidden.some(s=>group.section.from>=s.from&&group.section.from<=s.to))continue;out.push(Decoration.widget({widget:new Footer(ctx,group,state.readOnly),block:true,side:side++,footnoteRole:'list'}).range(group.end));}
   return Decoration.set(out,true);
  }
@@ -44,5 +45,5 @@ export function createDynamicFootnotes(options){
   }
   destroy(){this.dead=true;this.serial++;if(this.frame)cancelAnimationFrame(this.frame);this.view.dom.removeEventListener('mousedown',this.down,true);this.view.dom.removeEventListener('click',this.click,true);}
  }
- return {field,extension:[field,numbers,ViewPlugin.fromClass(Navigation)]};
+ return {field,extension:[definitionGroups.extension,field,numbers,ViewPlugin.fromClass(Navigation)]};
 }
