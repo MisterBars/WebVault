@@ -48,7 +48,7 @@
 
 ## Свойства и история
 
-Технические требования, лимиты, клавиатура/IME, YAML и DOM/CSS сохранены в [properties_panel.md](properties_panel.md), [property_links.md](property_links.md), [property_removal.md](property_removal.md). Эти источники ещё требуют предметного сведения, но больше не дублируются дневником в backlog.
+Технические требования, лимиты, клавиатура/IME, YAML и DOM/CSS сведены в [properties_panel.md](properties_panel.md), включая [удаление целого поля](properties_panel.md#удаление-целого-поля); native wiki-picker описан в [property_links.md](property_links.md). Исторические проверки и их ограничения сохранены в [npm_build.md](npm_build.md#исторические-свидетельства-свойств), события — в [месячном changelog](changelog/2026-10.md). Документальное сведение не закрывает дальнейшие требования и функциональную регрессию ниже.
 
 | ID | Сохранённый объём / остаток |
 | --- | --- |
