@@ -1,81 +1,79 @@
-# Актуальный контракт оформления WebVault
+# Контракт оформления WebVault
 
-Срез: принятая база до `bcfe626`; дополнение `calendar-09` принято пользователем. 22.10.2026. [Исторические уточнения](theme_compatibility.md) · [Changelog](../CHANGELOG.md).
+[Указатель](index.md) · [Типографика и выделение](note_appearance.md) · [Проект адаптера](theme_adapter.md) · [История](../CHANGELOG.md) · [Backlog](next_steps.md)
 
-Это карта реальных элементов и точек адаптации, а не обещание полного совпадения DOM/CSS Obsidian. Старые разделы исторического документа, где CM/reading ещё отсутствуют, не описывают текущее состояние.
+## Область и основания
+
+Предметная карта реальных компонентов, состояний и точек адаптации, не обещание полного совпадения DOM/CSS Obsidian. База этой редакции —2dd2a83c9b7d462727027cf92fc07fe2500e5ccd. Адресно прочитаны note_theme.js/note_theme_contract.js, obsidian-tokens.css, markdown_renderer.js, note_theme_contract.test.mjs/note_theme.test.mjs и группа тематических руководств/аудита. Контракты остальных компонентов сопоставлены с уже сведёнными предметными руководствами; это не новый полный аудит всех JS-модулей, test:all/build/IIS/браузер или проверка установленного bundle.
+
+Календарь, верхняя история, gutter, heading folding и оформление текста имеют реализации и исторические ограниченные проверки; цепочки прежних «кандидатов» не текущий отрицательный статус. Планы, ранние результаты и поздние наблюдения различаются. Подробности свойств — properties_panel.md, текста — live_preview_blocks.md, сносок — footnotes.md; старый theme_compatibility.md пока источник до содержательной сверки/удаления, не конкурирующая актуальная матрица.
 
 ## Основа оформления
 
-- Базовые значения переменных: src/WebVault.Web/assets/css/obsidian-tokens.css.
-- Компоновка: src/WebVault.Web/assets/css/workspace.css и application.css.
-- Часть стилей редактора/свойств устанавливается JS-модулями. Они могут добавляться после внешних stylesheet: будущий менеджер тем должен явно обеспечить приоритет темы/персональных настроек. Одного подключения произвольного theme.css недостаточно.
-- body использует theme-dark/theme-light, mod-windows, is-readable-line-width и webvault-workspace. Наличие токенов не означает готовность менеджера тем.
-- Внутренние классы wv- и webvault- являются собственным контрактом проекта. Совпадение части имён с Obsidian не означает поддержку его API/плагинов.
+- Собственные defaults WebVault — [obsidian-tokens.css](../src/WebVault.Web/assets/css/obsidian-tokens.css), не stylesheet Obsidian или полная Minimal. Палитры theme-dark/theme-light и знакомые имена переменных не означают готовый персональный менеджер тем.
+- Компоновка — workspace.css/application.css. Body использует theme-dark/theme-light, mod-windows, is-readable-line-width, webvault-workspace. Собственные wv-/webvault-классы не Obsidian API/плагины.
+- Базовые токены загружаются рано; часть стилей устанавливается JS после stylesheet. Будущий адаптер обязан определить порядок/специфичность темы и личных настроек, а не рассчитывать на одно подключение произвольного theme.css.
+- Палитра/типографика отделены от layout: не переносить чужие gutter/sizer/scroll/Electron-правила автоматически. Общая прокрутка в #notesPane использует локальные !important; не менять её владельца и не скрывать реальные пустые строки/номера ради темы.
+- Имена/значения/пути выводятся DOM/textContent. Локальные SVG/currentColor не требуют системного icon-font/CDN; JS из темы не исполняется этим контрактом.
 
 ## Карта компонентов
 
-| Компонент | DOM/CSS и состояния | Источник |
+| Компонент | Реальные DOM/CSS и состояния | Каноническое описание / источник |
 | --- | --- | --- |
-| Рабочая область | .workspace, .workspace-tabs, .view-header, .view-actions, .view-content, .markdown-source-view, .webvault-editor-container | [workspace.css](../src/WebVault.Web/assets/css/workspace.css) |
-| Markdown и чтение | .wv-render, .wv-reading-pane; .wv-callout, .wv-callout-title; базовые таблицы/код/mark | [markdown_renderer.js](../tools/cm6/markdown_renderer.js) |
-| CodeMirror/gutter (gutter-left-10, принят) | .cm-editor.wv-window-gutters, .cm-content, .cm-line, .cm-gutters; исходные номера блоков, измеряемый горизонтальный сдвиг gutter | [editor.js](../tools/cm6/editor.js), [source_gutter_view.js](../tools/cm6/source_gutter_view.js) |
-| Свойства | .wv-properties.wv-properties-v2, .wv-property-row:hover/:focus-within, .wv-property-name-cell, .wv-property-name, .wv-property-value, .wv-property-error | [properties.js](../tools/cm6/properties.js), [properties_ui.js](../tools/cm6/properties_ui.js) |
-| Списки и ссылки | .wv-property-list-field:focus-within, .wv-property-chip, .wv-property-chip-text, .wv-property-chip-remove, .wv-property-list-input; .wv-property-link-item, a.wv-property-note-link | [properties_ui.js](../tools/cm6/properties_ui.js) |
-| Подсказки значений | .wv-property-suggestions[role=listbox] в body, .wv-property-suggestion[aria-selected=true]; combobox/aria-controls/expanded/activedescendant | [property_suggestions_ui.js](../tools/cm6/property_suggestions_ui.js) |
-| Добавление поля | .wv-property-add-button, .wv-property-add-form, .wv-property-name-picker, .wv-property-name-menu, .wv-property-name-option[aria-selected=true], .wv-property-type-icon, .wv-property-add-status, .wv-property-add-actions | [property_add_ui.js](../tools/cm6/property_add_ui.js) |
-| Преобразование типа | button.wv-property-type-button[aria-expanded], .wv-property-type-panel[role=dialog], .wv-property-type-before, .wv-property-type-after, .wv-property-type-message, .wv-property-type-actions; disabled для защищённых значений | [property_type_ui.js](../tools/cm6/property_type_ui.js) |
-| Общая история заметки | .wv-note-history-actions[role=group] в .view-actions; button.wv-note-history-button, svg.wv-note-history-icon, .wv-note-history-label, [data-wv-history=undo/redo], disabled/focus-visible | [note_history_controls.js](../tools/cm6/note_history_controls.js), [property_history.js](../tools/cm6/property_history.js) |
-| Даты (calendar-09, принят) | .wv-date-field, .wv-date-input, .wv-date-trigger; .wv-calendar[role=dialog] в body, .wv-calendar-header/jump/grid/week/day/time/preview/message/actions; aria-selected, is-today, is-outside-month, disabled/focus-visible | [calendar_ui.js](../tools/cm6/calendar_ui.js), [calendar_model.js](../tools/cm6/calendar_model.js) |
+| Оболочка | .app-container, .workspace, .workspace-ribbon, .workspace-split.mod-left-split/.mod-root-split, .workspace-tabs, .workspace-tab-header-container/.workspace-tab-header.is-active, .workspace-leaf/.workspace-leaf-content[data-type=file-explorer/markdown], .nav-header/.nav-files-container/.nav-file/.nav-file-title.is-active/.nav-file-title-content, .view-header/.view-actions/.view-content, .markdown-source-view/.webvault-editor-container, .inline-title/.status-bar | [workspace](workspace_layout.md), [файлы](file_vault.md), [workspace.css](../src/WebVault.Web/assets/css/workspace.css). Одна шапка вкладки не система вкладок/split; строка состояния «символы» считает UTF-16 единицы, не графемы. |
+| Markdown/чтение | .wv-render, .wv-reading-pane, .wv-callout/.wv-callout-title, table/code/pre/mark | [Текст](live_preview_blocks.md), [renderer](../tools/cm6/markdown_renderer.js). Реальные source ranges/пустые строки не переписываются оформлением. |
+| CodeMirror/исходные номера | .cm-editor.wv-window-gutters, .cm-content/.cm-line/.cm-gutters; runtime --wv-source-gutter-shift | [Gutter](editor_gutters.md), [source_gutter_view.js](../tools/cm6/source_gutter_view.js). Не новая нумерация reading. |
+| Нативный текст/заголовки | .wv-native-strong/em/strike/code/highlight/code-line/entity, .wv-native-heading-line/.wv-native-heading-anchor, button.wv-native-heading-button[aria-expanded] | [Текст](live_preview_blocks.md). Не возвращать обычный текст/код/заголовки к цельным BlockWidget/парковке курсора. |
+| Разделы заголовков | .wv-heading-fold-host, button.wv-heading-fold-button[aria-expanded], data-wv-heading-fold/data-wv-view-only | [Heading folding](heading_folding.md). Исходная позиция не постоянный id; состояние EditorState не CSS-функция. |
+| Свойства | .wv-properties.wv-properties-v2, .wv-property-row:hover/:focus-within, .wv-property-name-cell/name/value/error | [Свойства](properties_panel.md), [properties.js](../tools/cm6/properties.js), [properties_ui.js](../tools/cm6/properties_ui.js). Data-wv-property — имя, не стабильный id. |
+| Chips/ссылки свойств | .wv-property-list-field:focus-within, .wv-property-chip/text/remove, .wv-property-list-input, .wv-property-link-item, a.wv-property-note-link | [Свойства](properties_panel.md), [native picker](property_links.md). Ссылки с крестиками и обычные chips сохраняют разное действие. |
+| Value-подсказки | .wv-property-suggestions[role=listbox] в body, .wv-property-suggestion[aria-selected=true], combobox/aria-controls/expanded/activedescendant | [property_suggestions_ui.js](../tools/cm6/property_suggestions_ui.js). Не автоматически все скалярные поля. |
+| Создание поля | .wv-property-add-button/form/status/actions/value, .wv-property-name-picker/menu/option[aria-selected=true], .wv-property-type-icon | [property_add_ui.js](../tools/cm6/property_add_ui.js). Существующие имена/стандартные списки/guards — поведение, не глобальная схема. |
+| Преобразование | button.wv-property-type-button[aria-expanded], .wv-property-type-panel[role=dialog], .wv-property-type-before/after/message/actions; disabled защищённых значений | [property_type_ui.js](../tools/cm6/property_type_ui.js). CSS не снимает запрет потери времени/точности. |
+| Удаление поля | .wv-property-remove-button[aria-expanded], .wv-property-remove-panel[role=dialog], совместная .wv-property-type-panel | [Удаление целого поля](properties_panel.md#удаление-целого-поля), [property_remove_ui.js](../tools/cm6/property_remove_ui.js). Не удаление chip. |
+| История заметки | .wv-note-history-actions[role=group] в #notesPane .view-actions, button.wv-note-history-button, svg.wv-note-history-icon, .wv-note-history-label, [data-wv-history=undo/redo], disabled/focus-visible | [note_history_controls.js](../tools/cm6/note_history_controls.js), [property_history.js](../tools/cm6/property_history.js). Одна общая история с guards; дублей YAML нет. |
+| Календарь | .wv-date-field, input.wv-date-input, button.wv-date-trigger, section.wv-calendar[role=dialog] в body | Раздел ниже и [свойства](properties_panel.md). Собственный date/datetime-календарь, не системный picker и не менеджер тем. |
+| Wiki-меню CM | .cm-tooltip-autocomplete, .cm-completionLabel/.cm-completionDetail, li[aria-selected=true] | [Wiki-ссылки](wiki_links.md). Текстовые пути, UI-font и семантическая палитра, не белый system Highlight. |
+| Native wiki-picker свойств | .wv-property-wiki-menu[role=listbox] в body, .wv-property-wiki-option[aria-selected=true], .wv-property-wiki-name/path/help | [property_links.md](property_links.md), [property_wiki_picker.js](../tools/cm6/property_wiki_picker.js). Отдельный controller, не CM completion и не heading-picker. |
+| Таблицы/списки/задачи/сноски | Собственные редакторы, локальные черновики, checkbox/UTC, определения/номера/backlinks/подсветка | Полные селекторы/guards — [tables.md](tables.md), [list_inline.md](list_inline.md), [footnotes.md](footnotes.md). Старая фраза «ещё не созданы» не текущий статус. |
+| Граф | .wv-graph-pane/header/controls/status, svg.wv-graph-svg, g[data-id][role=button][tabindex=0] | [note_graph.md](note_graph.md#domcss-и-доступность). Ключ/путь не постоянный публичный id; палитра/фокус/resize отдельно от модели связей. |
 
 ## Переменные и ограничения
 
-Основные группы: background-primary/secondary/secondary-alt; background-modifier-border/hover/form-field/box-shadow; text-normal/muted/faint/accent/error; interactive-normal/hover/accent; font-interface/font-text/font-monospace, font-ui-small/font-text-size; radius-s/m/l, input-radius, file-line-width. Дополнительные токены border-hover/text-accent-hover имеют fallback в соответствующих модулях.
+Поддерживается подмножество знакомых токенов, не полный каталог Obsidian. Основные группы:
 
-Иконки общей истории — локальные SVG с stroke=currentColor, без зависимости от символов системного шрифта/CDN. Для обратной совместимости сохраняются .wv-property-history-actions и .wv-property-history-button; над свойствами дублей кнопок нет. До 760px подписи общих кнопок скрываются, доступные названия/title сохраняются.
+- background-primary/primary-alt/secondary/secondary-alt; background-modifier-border/border-hover/border-focus/hover/active-hover/form-field/box-shadow;
+- text-normal/muted/faint/accent/error/selection/on-accent, text-accent-hover и text-formatting с fallback;
+- interactive-normal/hover/accent/accent-hover; nav-item-color/color-active/background-active;
+- font-interface-theme/font-text-theme/font-monospace-theme, font-interface/font-text/font-monospace/font-editor, font-text-size/font-ui-small/font-ui-smaller, line-height-normal/file-line-width;
+- ribbon-width/header-height/tab-height/status-bar-height, radius-s/m/l, input-height/input-radius.
 
-Известные имена style-узлов: wv-properties-style, wv-properties-v2-style, wv-property-suggestions-style, wv-property-add-style, wv-property-type-style, wv-note-history-style. Прежний wv-property-history-style заменён новым после обновления страницы. Динамические имена/случайные id отдельных input не являются устойчивыми селекторами темы.
+Семантические --wv-ui-font/note-font/editor-font/code-font/code-size, --wv-note-weight/ui-heading-weight, --wv-selection-background/text, --wv-markup-color/weight, --wv-active-line-background заданы defaults в раннем CSS. --font-code — размер, не семейство. Полные роли/preview/ограничения selection — [note_appearance.md](note_appearance.md). Не все компоненты обязаны использовать каждую переменную.
 
-Компоновка общей прокрутки использует ограниченные #notesPane правила с !important. Это осознанная точка адаптации, а не гарантия, что сторонняя тема сможет без правок менять владельца scroll. Не скрывать реальные пустые строки/номера CSS-хаками при переносе темы.
+Style-узлы: wv-properties-style, wv-properties-v2-style, wv-property-suggestions-style, wv-property-add-style, wv-property-type-style, wv-property-remove-style, wv-note-history-style, wv-calendar-style, wv-source-gutter-style, wv-heading-fold-style, wv-note-appearance-style, wv-wiki-completion-style, wv-property-wiki-style. Прежний wv-property-history-style заменяется после reload; .wv-property-history-actions/button сохраняются как compatibility-селекторы. Случайные input id и генерируемые CM hash-классы не устойчивые точки темы.
+
+История: SVG stroke=currentColor, без CDN/icon-font. Кнопки имеют aria-label/aria-keyshortcuts/title/disabled; высота30px, рамка и подпись, при ширине до760px подпись скрыта с сохранением доступного названия. Это не гарантия всех тем.
+
+## Календарь и popup
+
+Календарь: .wv-calendar-header/nav/jump/grid/week/weekday/day/time/preview/message/actions/apply; .wv-calendar-day[aria-selected=true], .is-today/.is-outside-month, сообщения role=status, .wv-property-add-value в создании. Trigger имеет aria-haspopup/expanded/controls, gridcell — roving tabindex/aria-selected/current, dialog — имя и Escape/Tab-навигацию. Поведение date/local datetime/секунд/истории описано в properties_panel.md, не меняется CSS.
+
+Токены background-primary, background-modifier-border/form-field/box-shadow, interactive-normal/hover/accent, text-normal/muted/faint/error/on-accent, font-ui-small/font-interface, radius-m/input-radius. --wv-calendar-background использует background-primary с fallback тени rgba. Popup fixed в body; позиционирование/viewport/потеря владельца проверяются отдельно.
+
+Wiki-picker свойств также fixed в body: background-primary, background-modifier-border/active-hover/box-shadow, text-normal/muted, font-ui-small/smaller, --wv-ui-font, radius-s/m. Native textarea-роль не подменяется combobox; picker и обычные value-подсказки владеют собственными aria-controls и не открываются одновременно. Логика имён/типов/календаря не CSS-совместимость.
+
+## Gutter и folding
+
+.cm-editor.wv-window-gutters/.cm-gutters используют runtime transform через --wv-source-gutter-shift, wv-source-gutter-style. --wv-gutter-inset читается с .markdown-source-view в CSS px, default8. Резервированная ширина gutter и положение тела не меняются, штатные цвета/номера/клики CM сохраняются. Resize/scroll/смена заметки пересчитывают положение; независимое переопределение transform и CSS-масштабы требуют проверки.
+
+.wv-heading-fold-host у h1–h6 имеет position:relative; кнопка слева через --wv-heading-fold-offset (fallback -24px), без изменения высоты. SVG поворачивается для закрытого раздела, aria-label/title описывают действие. Токены text-muted/normal, background-modifier-hover, interactive-accent/radius-s; стиль wv-heading-fold-style. Data-wv-view-only исключает кнопку из форсирующего click-save gate. YAML исключается моделью WVFrontmatter, не глобальным скрытием source gutter. Сворачивание всех списков/кода/таблиц этим не заявлено.
 
 ## Что записывать при каждом UI-изменении
 
-- Реальные новые/переименованные классы, data-атрибуты и владелец стилей.
-- Токены и оставшиеся fallback/фиксированные размеры; порядок подключения и конфликт специфичности.
+- Реальные классы/data-атрибуты/владелец стилей и каноническое руководство.
+- Токены, fallback/фиксированные размеры, порядок подключения/специфичность.
 - Hover/focus/disabled/ошибки, клавиатура/доступные названия, узкий экран.
-- Удалённые/сохранённые compatibility-селекторы и существенные изменения в changelog.
-- Отдельно: что реализовано и принято, что ещё планируется. Не обещать полную совместимость темы без проверки конкретной темы.
+- Сохранённые/удалённые compatibility-селекторы и существенные изменения в месячном changelog.
+- Раздельно исходники, тесты, build, публикация и историческая браузерная проверка. Старые window-маркеры не версии релиза и не приёмка текущего HEAD.
 
-Тематический календарь calendar-09 добавлен как локальный кандидат с реальными DOM-классами ниже. Менеджер тем и настройки сторонних плагинов остаются задачами. Актуальная очередь — [next_steps](next_steps.md).
-
-
-## Календарь calendar-09 — текущий кандидат
-Собственные реальные классы: .wv-date-field, input.wv-date-input, button.wv-date-trigger; section.wv-calendar[role=dialog] в body; .wv-calendar-header, .wv-calendar-nav, .wv-calendar-jump, .wv-calendar-grid, .wv-calendar-week, .wv-calendar-weekday, .wv-calendar-day[aria-selected=true], .is-today, .is-outside-month, .wv-calendar-time, .wv-calendar-preview, .wv-calendar-message[role=status], .wv-calendar-actions, .wv-calendar-apply; .wv-property-add-value для поля создания. Style id wv-calendar-style. Trigger имеет aria-haspopup/expanded/controls, gridcell — roving tabindex и aria-selected/current, dialog — имя и Escape/Tab-навигацию.
-
-Токены: background-primary, background-modifier-border/form-field/box-shadow, interactive-normal/hover/accent, text-normal/muted/faint/error/on-accent, font-ui-small/font-interface, radius-m, input-radius. Собственный --wv-calendar-background по умолчанию берёт background-primary; тень имеет запасное rgba. Все SVG локальные, currentColor; нет CDN/внешних шрифтов. Это не полная реализация менеджера тем и не обещание совпадения пикселей с Obsidian. Статус кандидата не равен браузерной приёмке.
-
-
-## Gutter исходных строк — кандидат gutter-left-10
-Новый реальный класс .wv-window-gutters и .cm-gutters используют transform, задаваемый runtime --wv-source-gutter-shift; style id wv-source-gutter-style. Отступ --wv-gutter-inset читается с .markdown-source-view в CSS px, default 8. Резервированная ширина gutter и положение тела не меняются; цвета/номера/клики CM остаются существующими. При адаптации темы не перезаписывать transform независимо; кастомные CSS-масштабы требуют проверки. Resize/scroll и смена заметки пересчитывают положение. Подробности — [editor_gutters.md](editor_gutters.md). Это локальный кандидат, не завершённая приёмка и не новая нумерация reading.
-
-
-## Разделы заголовков — кандидат headings-fold-11
-.wv-heading-fold-host у реального h1–h6 имеет position:relative; button.wv-heading-fold-button[aria-expanded] позиционируется слева через --wv-heading-fold-offset (fallback -24px), не меняя высоту заголовка. SVG currentColor поворачивается при закрытом разделе; aria-label/title описывают действие. Палитра: text-muted/normal, background-modifier-hover, interactive-accent, radius-s; style id wv-heading-fold-style. data-wv-heading-fold содержит текущую позицию, не постоянный идентификатор заметки; data-wv-view-only исключает эту кнопку из форсирующего click-save gate.
-Состояния collapse в EditorState и source-узел WVFrontmatter относятся к поведению, а не к CSS-теме. YAML-стрелки исключаются моделью source, не глобальным скрытием fold gutter. Полная совместимость внешних тем, а также сворачивание отрисованных списков/кода/таблиц этим не заявлены. См. [heading_folding.md](heading_folding.md).
-
-
-## Выделение и типографика — кандидат note-theme-12
-Реальный root-класс .cm-editor.wv-themed-editor, style id wv-note-appearance-style. Подсветка использует стабильные wv-md-heading / wv-md-h1..h6 / wv-md-formatting/em/strong/strike/link/url/code/quote/list и wv-syntax-comment/meta/keyword/string/number/name/operator/punctuation/invalid; случайные CM hash-классы не являются контрактом адаптера. Selection классы CM остаются штатными, им задаются семантические роли.
-Токены WebVault --wv-ui-font/note-font/editor-font/code-font/code-size, --wv-selection-background/text, --wv-markup-color/weight, --wv-active-line-background определены defaults в раннем obsidian-tokens.css и зависят от стандартных theme-переменных. NOTE_CSS не подставляет всю Minimal и не трогает geometry gutter/scroll/folding. Заголовки тела стилизуются отдельно от h3 интерфейса свойств. Подробности — [note_appearance.md](note_appearance.md), план импорта — [theme_adapter.md](theme_adapter.md), конкретный аудит — [Minimal 8.1.7](themes/minimal-8.1.7.md).
-
-
-## Уточнение 12b: фон токенов и переносы
-CM selection рисуется ниже текста: непрозрачный background у wv-md-code недопустим для подсветки самих исходных символов. В 12b он transparent, в HTML reading/live-rendered CODE/PRE фон --code-background сохраняется. Будущий адаптер должен различать фон поверхности/слоя и фон inline декорации; opaque/e-ink остаётся отдельной задачей. Цвет --text-selection не меняется этим исправлением.
-Один исходный softbreak выводится как настоящий BR, не зависящий от white-space:normal; тема не должна молча скрывать семантический BR. Это политика отображения WebVault, не добавление пробелов/новых строк в Markdown-файл и не изменение code fence LF.
-
-
-## Подсказки ссылок — кандидат wiki-links-13
-Используется реальный CM completion: .cm-tooltip-autocomplete, .cm-completionLabel, .cm-completionDetail и li[aria-selected=true]. Новое style-id wv-wiki-completion-style задаёт UI-font/размеры, background-secondary, background-modifier-border/active-hover, text-normal/muted. Выделение пункта не использует жёсткий белый/system Highlight, собственные scrollbar/gutter/layout не переносит. Сырые пути выводятся библиотечным текстовым renderer, не HTML. Списковые inline-компоненты/checkbox ещё не созданы этим этапом — фиктивный контракт для них не назначается.
-
-
-## Wiki-picker свойств — кандидат property-links-14
-.wv-property-wiki-menu[role=listbox] — fixed popup в body, .wv-property-wiki-option[aria-selected=true], .wv-property-wiki-name/path/help; style-id wv-property-wiki-style. Цвета/границы через background-primary, background-modifier-border/active-hover/box-shadow, text-normal/muted, font-ui-small/smaller, --wv-ui-font, radius-s/m. Нет HTML из названий файлов, нет внешних ресурсов. Input/textarea получают autocomplete/controls/activedescendant, native textarea-роль не подменяется combobox. Обычный .wv-property-suggestions и новый Wiki-picker владеют только своими aria-controls и не открываются одновременно. Логика имён/типов/календаря не является CSS-совместимостью и не меняется. См. [property_links.md](property_links.md).
+Менеджер тем/личные настройки и выполнение сторонних plugin settings не реализуются редактурой. Текущий незавершённый объём — THEME-ADAPTER-01, THEME-BROWSER-01, THEME-ASSETS-01, THEME-SELECTION-02 и остальные требования [backlog](next_steps.md#темы-и-безопасность-интерфейса).
