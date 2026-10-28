@@ -1,12 +1,12 @@
-# Базовый API авторизации
+# API: авторизация, маршруты и диагностика
 
 [Указатель](index.md) · [Аккаунт и сессии](session_policy.md) · [Пользователи](user_management.md) · [Схема БД](db_schema.md) · [Установка](first_install.md)
 
 ## Область и текущие канонические контракты
 
-База статической сверки — 71a87b2799ef5d30929337f57d0eb47ba6b527cd. Полностью прочитаны AuthHandler.cs, WebApi.cs, AuthCrypto.cs, AccountHandler.cs, SetupStatusHandler.cs, декларации login.ashx/me.ashx/setup_status.ashx и каталог api/auth с blob SHA. setup/login/logout имеют одинаковый blob декларации AuthHandler; me/profile/change_password — одинаковый blob AccountHandler. Это ограниченная сверка маршрутов и общих helpers, не каталог всех .ashx, не компиляция или запуск C#/SQL/IIS.
+База auth-сверки — 71a87b2799ef5d30929337f57d0eb47ba6b527cd. Полностью прочитаны AuthHandler.cs, WebApi.cs, AuthCrypto.cs, AccountHandler.cs, SetupStatusHandler.cs, декларации login.ashx/me.ashx/setup_status.ashx и каталог api/auth с blob SHA. setup/login/logout имеют одинаковый blob декларации AuthHandler; me/profile/change_password — одинаковый blob AccountHandler. На dd737b7e84c46d7c9d05c23016745b7f24534c6c дополнительно обойдён весь каталог api, прочитаны декларации admin/notes и полный inline-handler health.ashx. Это статическая сверка маршрутизации и описанных веток, не компиляция или запуск C#/SQL/IIS.
 
-Канонический предмет этого документа — setup/login/logout, общие проверки и границы auth-маршрутов. Детальные операции аккаунта не дублируются:
+Канонический предмет этого документа — карта дерева api, setup/login/logout, общие проверки и диагностика health. Детальные операции аккаунта/файлов не дублируются:
 
 | Область | Канонический контракт |
 | --- | --- |
@@ -16,6 +16,28 @@
 | Личные файлы, импорт и экспорт | [file_vault.md](file_vault.md), [note_transfer.md](note_transfer.md) |
 
 Самостоятельная регистрация — отдельное требование, не следствие наличия setup или административного создания. Ранний статус «код подготовлен; компиляция/IIS не проверены» относился к первому комплекту; нынешняя статическая сверка также не доказывает runtime-приёмку.
+
+## Карта маршрутов api
+
+На базе dd737b7e84c46d7c9d05c23016745b7f24534c6c в src/WebVault.Web/api установлены18 файлов .ashx:7 auth +5 admin +5 notes +1 health. Это счёт файлов-маршрутов, не методов, action или функций продукта. В корне api найден health.ashx и три перечисленных подкаталога; их листинги не содержали других вложенных каталогов. Охват не включает возможные HTTP-входы вне api, IIS rewrite или фактическую публикацию.
+
+| Путь относительно api/ | Класс обработчика | Предметный контракт |
+| --- | --- | --- |
+| auth/setup.ashx, auth/login.ashx, auth/logout.ashx | WebVault.AuthHandler | Базовая авторизация ниже. |
+| auth/me.ashx, auth/profile.ashx, auth/change_password.ashx | WebVault.AccountHandler | session_policy.md. |
+| auth/setup_status.ashx | WebVault.SetupStatusHandler | user_management.md, границы ниже. |
+| admin/reset_password.ashx | WebVault.AccountHandler | session_policy.md; не отдельный reset-handler. |
+| admin/users.ashx, admin/user_delete.ashx | WebVault.AdminUsersHandler | user_management.md; совместимый delete не purge. |
+| admin/user_manage.ashx | WebVault.UserManagementHandler | user_management.md. |
+| admin/purge_user.ashx | WebVault.PurgeUserHandler | folders_and_purge.md. |
+| notes/vault.ashx | WebVault.VaultHandler | file_vault.md. |
+| notes/move.ashx | WebVault.FileMoveHandler | file_vault.md. |
+| notes/trash.ashx | WebVault.TrashHandler | file_vault.md. |
+| notes/trash_manage.ashx | WebVault.TrashManagementHandler | file_vault.md. |
+| notes/transfer.ashx | WebVault.NoteTransferHandler | note_transfer.md. |
+| health.ashx | WebVaultHealthHandler, inline-код в .ashx | Диагностика ниже. |
+
+Декларации сопоставлены прямым чтением и одинаковыми blob SHA: reset_password совпадает с прочитанным me.ashx, user_delete — с users.ashx; auth-группы аналогично. Это доказывает назначенный класс, не успешное исполнение всех его веток. Детальные тела admin/notes этим пакетом повторно не аудированы; их методы/action/лимиты не выводить из имён файлов или общих WebApi helpers. Отсутствие отдельного search/graph .ashx в этом дереве не доказательство отсутствия клиентского поиска/графа.
 
 ## Базовые маршруты и общие правила
 
@@ -77,6 +99,23 @@ logout использует AuthHandler.Current, а не WebApi.RequireUser: п�
 
 Порядок проверок влияет на первую ошибку: HTTPS до метода; POST-guards до Rate/Read; logout до Rate/Read. Не повторять login/setup вслепую после сетевой неопределённости: сначала проверить сессию через me либо возможность setup через setup_status. canSetup=false не универсальный ответ при недоступной БД: если условия локального включённого setup выполнены, ошибка запроса к БД даёт500. Удалённый HTTPS GET setup_status возвращает canSetup=false без этой ветки запроса; удалённый HTTP отклоняется Prepare.
 
+## Диагностика health
+
+Полный обработчик расположен в api/health.ashx, класс WebVaultHealthHandler вне namespace WebVault. Порядок: WebApi.Prepare → GET → RequireUser(false) → IsAdmin → Request.IsLocal → выбор проверки. GET не требует POST/CSRF-заголовков; обычная ограниченная сессия MustChangePassword отклоняется RequireUser до проверки роли. Локальность проверяется после роли, поэтому обычная роль получает administrator_required раньше local_only. Не использовать диагностический URL как анонимный обход при отказе БД.
+
+| Запрос после прохождения guards | Ответ |
+| --- | --- |
+| GET api/health.ashx без check=db, включая другое значение check |200 {ok:true,application:'WebVault',aspnet:'ok',database:'not_checked'}.|
+| GET api/health.ashx?check=db |Дополнительное открытие SQL и SELECT DB_NAME();200 {ok:true,aspnet:'ok',database:'ok'} только при имени WebVault без учёта регистра.|
+
+Даже первая ветка зависит от БД: RequireUser читает auth.UserSessions/auth.Users до выбора check. database:not_checked означает отсутствие дополнительной проверки DB_NAME, не отсутствие SQL-запросов и не независимую liveness-пробу ASP.NET. Обе ветки сами не продлевают сессию через me. check сравнивается с db буквально; произвольные значения не выбирают другую SQL-команду.
+
+Для SELECT DB_NAME установлен CommandTimeout=5 секунд; это не общий таймаут всего HTTP-запроса, Open или проверки сессии. База с другим именем вызывает исключение Unexpected database и не считается успешной, даже если соединение открылось. Факт правильного имени не доказывает миграции00–07, ACL DataRoot, права всех объектов, backup/restore или работоспособность заметок.
+
+ApiFailure сохраняет свой HTTP-код/ошибку через WebApi.Error: например401 unauthenticated,403 https_required/password_change_required/administrator_required/local_only,405 method_not_allowed с Allow:GET. Любое иное пойманное исключение, в том числе ошибка БД при проверке сессии, даёт503 {ok:false,error:'database_check_failed',errorId:...}, а не обычный500 server_error. Код этого ответа не локализует причину только в дополнительном SELECT. Trace пишет errorId/тип исключения, детали не возвращаются клиенту. Это не проверка настроенного хранения Trace на сервере.
+
+План проверки на тестовой установке: анонимный/истёкший/ограниченный/обычный/локальный админ/удалённый админ; HTTP/HTTPS и неверный метод; обе ветки check; отказ БД до выбора ветки; другое имя БД; отсутствие внутренних данных в503. Не выключать рабочую БД ради документальной сверки. Работа кнопки UI, путь IIS и опубликованный код проверяются отдельно.
+
 ## Установка и первоначальный администратор
 
 Следовать [first_install.md](first_install.md): SQL00–07, обновление только подтверждённо неприменёнными миграциями после бэкапа БД/DataRoot. Рабочий Web.config не заменять, appSettings/customHeaders не дублировать. Текущий вход setup — index.html, не старая отдельная auth.html.
@@ -97,4 +136,4 @@ $rng.Dispose()
 
 План, не прогон: методы/Allow; локальный HTTP и удалённый HTTPS/HTTP; POST заголовки/MIME/Origin; границы байтов и UTF-16 тела; неизвестный/неактивный/заблокированный login;20 запросов/истечение квоты/занятость; конкурентный первый setup; неверные cookies/CSRF/отзыв/оба срока; повтор logout; отказ БД/CNG и отсутствие внутренних сведений в ответе. Использовать изолированную тестовую установку, не расходовать лимиты/блокировать рабочие учётки ради документации. Полные планы аккаунтов и критерии — session_policy.md/user_management.md.
 
-Источники исходного проектного решения: OWASP Password Storage Cheat Sheet (PBKDF2-HMAC-SHA256600000), Microsoft BCryptDeriveKeyPBKDF2 (Windows7). Эта редактура не новая внешняя проверка этих источников. Полная инвентаризация HTTP, все вызывающие WebApi маршруты, reverse proxy и runtime-среда остаются открытыми; тесты/build/публикация не выполнялись.
+Источники исходного проектного решения: OWASP Password Storage Cheat Sheet (PBKDF2-HMAC-SHA256600000), Microsoft BCryptDeriveKeyPBKDF2 (Windows7). Эта редактура не новая внешняя проверка этих источников. Инвентаризация файлов-маршрутов внутри api завершена в указанной базе, но не полная ревизия методов/action/guards всех admin/notes handlers или HTTP-входов вне api. Reverse proxy и runtime-среда остаются открытыми; тесты/build/публикация не выполнялись.
