@@ -6,7 +6,7 @@
 
 Предметная карта реальных компонентов, состояний и точек адаптации, не обещание полного совпадения DOM/CSS Obsidian. База этой редакции —2dd2a83c9b7d462727027cf92fc07fe2500e5ccd. Адресно прочитаны note_theme.js/note_theme_contract.js, obsidian-tokens.css, markdown_renderer.js, note_theme_contract.test.mjs/note_theme.test.mjs и группа тематических руководств/аудита. Контракты остальных компонентов сопоставлены с уже сведёнными предметными руководствами; это не новый полный аудит всех JS-модулей, test:all/build/IIS/браузер или проверка установленного bundle.
 
-Календарь, верхняя история, gutter, heading folding и оформление текста имеют реализации и исторические ограниченные проверки; цепочки прежних «кандидатов» не текущий отрицательный статус. Планы, ранние результаты и поздние наблюдения различаются. Подробности свойств — properties_panel.md, текста — live_preview_blocks.md, сносок — footnotes.md; старый theme_compatibility.md пока источник до содержательной сверки/удаления, не конкурирующая актуальная матрица.
+Календарь, верхняя история, gutter, heading folding и оформление текста имеют реализации и исторические ограниченные проверки; цепочки прежних «кандидатов» не текущий отрицательный статус. Планы, ранние результаты и поздние наблюдения различаются. Подробности свойств — properties_panel.md, текста — live_preview_blocks.md, сносок — footnotes.md. Сведённый источник theme_compatibility.md удалён коммитом 031e30f86a8cab35e23e0961265efd517def125a; распределение содержания и закреплённая историческая версия — в [границе сведения рабочей области](workspace_layout.md#граница-сведения). Это не конкурирующая актуальная матрица и не новая проверка совместимости тем.
 
 ## Основа оформления
 
@@ -52,7 +52,7 @@
 
 Style-узлы: wv-properties-style, wv-properties-v2-style, wv-property-suggestions-style, wv-property-add-style, wv-property-type-style, wv-property-remove-style, wv-note-history-style, wv-calendar-style, wv-source-gutter-style, wv-heading-fold-style, wv-note-appearance-style, wv-wiki-completion-style, wv-property-wiki-style. Прежний wv-property-history-style заменяется после reload; .wv-property-history-actions/button сохраняются как compatibility-селекторы. Случайные input id и генерируемые CM hash-классы не устойчивые точки темы.
 
-История: SVG stroke=currentColor, без CDN/icon-font. Кнопки имеют aria-label/aria-keyshortcuts/title/disabled; высота30px, рамка и подпись, при ширине до760px подпись скрыта с сохранением доступного названия. Это не гарантия всех тем.
+История: SVG stroke=currentColor, без CDN/icon-font. Кнопки имеют aria-label/aria-keyshortcuts/title/disabled; высота 30px, рамка и подпись, при ширине до 760px подпись скрыта с сохранением доступного названия. Это не гарантия всех тем.
 
 ## Календарь и popup
 
@@ -64,7 +64,7 @@ Wiki-picker свойств также fixed в body: background-primary, backgro
 
 ## Gutter и folding
 
-.cm-editor.wv-window-gutters/.cm-gutters используют runtime transform через --wv-source-gutter-shift, wv-source-gutter-style. --wv-gutter-inset читается с .markdown-source-view в CSS px, default8. Резервированная ширина gutter и положение тела не меняются, штатные цвета/номера/клики CM сохраняются. Resize/scroll/смена заметки пересчитывают положение; независимое переопределение transform и CSS-масштабы требуют проверки.
+.cm-editor.wv-window-gutters/.cm-gutters используют runtime transform через --wv-source-gutter-shift, wv-source-gutter-style. --wv-gutter-inset читается с .markdown-source-view в CSS px, default 8. Резервированная ширина gutter и положение тела не меняются, штатные цвета/номера/клики CM сохраняются. Resize/scroll/смена заметки пересчитывают положение; независимое переопределение transform и CSS-масштабы требуют проверки.
 
 .wv-heading-fold-host у h1–h6 имеет position:relative; кнопка слева через --wv-heading-fold-offset (fallback -24px), без изменения высоты. SVG поворачивается для закрытого раздела, aria-label/title описывают действие. Токены text-muted/normal, background-modifier-hover, interactive-accent/radius-s; стиль wv-heading-fold-style. Data-wv-view-only исключает кнопку из форсирующего click-save gate. YAML исключается моделью WVFrontmatter, не глобальным скрытием source gutter. Сворачивание всех списков/кода/таблиц этим не заявлено.
 
