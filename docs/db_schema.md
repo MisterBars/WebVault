@@ -63,6 +63,8 @@ TokenHash уникален; дополнительные индексы UserId �
 
 Миграция 06: EventId bigint IDENTITY PK, ActorUserId int, TargetUserId int, CreatedUtc datetime2(3) DEFAULT SYSUTCDATETIME(). Все поля NOT NULL. Роль получает INSERT, не право UI-просмотра журнала. FK на учётки намеренно нет: удаление не должно стирать/блокировать reset-аудит. Пароли/токены/текст заметок в этих полях не хранятся; политика просмотра/очистки — отдельный объём.
 
+Ранний архитектурный снимок project_overview.md на d0dd685c971e3b5ecd8a48ab90ae53f6931dfc50 называл журнал AccountEvents с ID/временем без паролей. Эта оговорка перенесена сюда при сверке8c3ff2dfa56376770fd3837bafbd7c139103ad35: старое имя не обозначает таблицу текущего контракта и не доказывает, что PasswordResetEvents возникла её переименованием. Подтверждённый здесь предмет — reset-аудит миграции06, не общий журнал всех событий аккаунта. Нового чтения SQL или проверки рабочей БД при этом документальном переносе не было.
+
 ## storage.UserVaults
 
 Миграция 05: VaultId uniqueidentifier PK, UserId int NOT NULL UNIQUE с FK на auth.Users, CreatedUtc datetime2(3) DEFAULT SYSUTCDATETIME(), все поля NOT NULL. Один реестр на пользователя; GUID не зависит от логина. Файлы и history размещаются по DataRoot/GUID согласно file_vault.md, не выбираются произвольным путём клиента.
