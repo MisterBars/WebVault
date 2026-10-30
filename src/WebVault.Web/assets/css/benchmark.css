@@ -1,0 +1,8 @@
+/* Only the benchmark settings panel; host workspace/application styles remain authoritative. */
+#settingsBenchmarkPanel fieldset{border:0;padding:0;margin:0;min-width:0}
+#settingsBenchmarkPanel .wv-benchmark-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+#settingsBenchmarkPanel label{display:block;margin:12px 0}
+#settingsBenchmarkPanel input,#settingsBenchmarkPanel select{font:inherit;width:100%;margin-top:5px;background:var(--background-modifier-form-field);color:var(--text-normal);border:1px solid var(--background-modifier-border);border-radius:var(--input-radius);padding:6px 8px}
+#settingsBenchmarkPanel .wv-benchmark-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#settingsBenchmarkPanel .wv-benchmark-output{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:650px){#settingsBenchmarkPanel .wv-benchmark-options{grid-template-columns:1fr}}
