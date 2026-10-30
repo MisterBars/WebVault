@@ -6,3 +6,4 @@
 #settingsBenchmarkPanel .wv-benchmark-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 #settingsBenchmarkPanel .wv-benchmark-output{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:650px){#settingsBenchmarkPanel .wv-benchmark-options{grid-template-columns:1fr}}
+#settingsBenchmarkPanel .wv-benchmark-help{display:block;margin:4px 0 12px;color:var(--text-muted);line-height:1.5}

@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const source=readFileSync(new URL('../../src/WebVault.Web/assets/js/benchmark_page.js',import.meta.url),'utf8'),context={window:{},fetch(){throw Error('No network allowed');}};
+vm.runInNewContext(source,context);
+const p=context.window.WebVaultBenchmarkPresentation,base={repetitions:30,warmup:3,sizeKiB:64,timeoutMs:5000};
+test('default explanation matches 3 plus 30 and 64 KiB',()=>{const r=p.plan(base);assert.equal(r.total,33);assert.equal(r.bytes,65536);assert.match(r.text,/предварительные: 3; измеряемые: 30/);assert.match(r.text,/5000 ms/);});
+test('zero warmup and maximum supported inputs',()=>{assert.equal(p.plan({...base,warmup:0}).total,30);const r=p.plan({repetitions:100,warmup:10,sizeKiB:256,timeoutMs:30000});assert.equal(r.total,110);assert.equal(r.bytes,262144);});
+test('string form values work without mutating source',()=>{const v=Object.freeze({repetitions:'7',warmup:'2',sizeKiB:'1',timeoutMs:'1000'}),r=p.plan(v);assert.equal(r.total,9);assert.equal(r.bytes,1024);assert.equal(v.repetitions,'7');});
+test('invalid and incomplete fields have no misleading preview',()=>{for(const v of ['',true,NaN,-1,1.5,101])assert.equal(p.plan({...base,repetitions:v}).valid,false);assert.equal(p.plan({...base,timeoutMs:999}).valid,false);assert.equal(p.plan({}).valid,false);});
+test('UI defaults and bounds are unchanged',()=>{assert.equal(JSON.stringify(p.fields.map(f=>[f[0],f[2],f[3],f[4]])),JSON.stringify([['repetitions',1,100,30],['warmup',0,10,3],['sizeKiB',1,256,64],['timeoutMs',1000,30000,5000]]));});
+test('field descriptions are present and wired to inputs and live preview',()=>{assert.equal(p.fields.length,4);for(const f of p.fields)assert.ok(f[5].length>40);assert.match(source,/setAttribute\('aria-describedby',help.id\)/);assert.match(source,/addEventListener\('input',refreshPlan\)/);assert.match(source,/plan.id='benchmarkPlan'/);assert.match(source,/Он не проверяет открытие заметок/);});

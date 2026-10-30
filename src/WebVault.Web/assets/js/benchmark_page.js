@@ -1,3 +1,17 @@
+(function(root){'use strict';
+var fields=[
+ ['repetitions','Измеряемые запросы',1,100,30,'1–100 одинаковых запросов. Их время формирует итоговую статистику.'],
+ ['warmup','Предварительные запросы (прогрев)',0,10,3,'0–10 таких же запросов перед измерениями. Проверяются, но в итоговые числа не входят. Кэш принудительно не прогревается.'],
+ ['sizeKiB','Размер тестового ответа, KiB',1,256,64,'1–256 KiB текста из символов x в каждом ответе. Не размер заметки и не число файлов. JSON добавляет служебный объём.'],
+ ['timeoutMs','Лимит одного запроса, ms',1000,30000,5000,'1000–30000 ms на завершение запроса с проверкой. Это предел ожидания, а не пауза между повторами.']
+];
+function plan(input){
+ var v={};for(var i=0;i<fields.length;i++){var f=fields[i],raw=input[f[0]],value=(typeof raw==='number'||typeof raw==='string'&&raw.trim()!=='')?Number(raw):NaN;if(!Number.isInteger(value)||value<f[2]||value>f[3])return {valid:false,text:'Проверьте параметры: нужны целые значения в указанных диапазонах.'};v[f[0]]=value;}
+ var total=v.repetitions+v.warmup,bytes=v.sizeKiB*1024;
+ return {valid:true,total:total,bytes:bytes,text:'План: '+total+' тестовых запросов (предварительные: '+v.warmup+'; измеряемые: '+v.repetitions+'). Текст каждого ответа: '+v.sizeKiB+' KiB ('+bytes+' байт). Лимит одного шага: '+v.timeoutMs+' ms. Создание запуска и очистка выполняются отдельно.'};
+}
+root.WebVaultBenchmarkPresentation={fields:fields,plan:plan};
+}(window));
 (function(){'use strict';
 var A=window.WebVaultCore;if(!A||window.WebVaultBenchmarkUI)return;
 var E=A.el,modal=E('settingsModal'),layout=modal.querySelector('.settings-layout'),nav=modal.querySelector('.vertical-tab-header'),account=modal.querySelector('.vertical-tab-content'),epoch=0,observed='',controller=null,report=null,users=[],canRun=false,corePromise=null;
@@ -11,11 +25,14 @@ var svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),circle=docu
 if(!account.id)account.id='settingsAccountPanel';E('accountTab').setAttribute('role','tab');E('accountTab').setAttribute('aria-controls',account.id);
 var tab=button('Бенчмарк',nav,function(){open();});tab.id='benchmarkTab';tab.className='nav-file-title';tab.setAttribute('role','tab');tab.setAttribute('aria-controls','settingsBenchmarkPanel');tab.setAttribute('aria-selected','false');tab.hidden=true;
 var panel=n('section',null,layout);panel.id='settingsBenchmarkPanel';panel.className='vertical-tab-content';panel.hidden=true;panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',tab.id);
-n('h2','Бенчмарк',panel);n('p','Синтетический HTTP-ответ → JSON → проверка содержимого. Заметки и редактор не используются.',panel);var status=n('p','',panel);status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+n('h2','Бенчмарк',panel);n('h3','Сценарий: Синтетический HTTP-ответ',panel);n('p','Сервер проверяет доступ и возвращает тестовую строку из символов x. Браузер получает JSON и проверяет точное содержимое. Измеряется время запроса с разбором и проверкой ответа.',panel);n('p','Пока один сценарий — http.synthetic.read, версия 1. Он не проверяет открытие заметок, Markdown, поиск или отклик редактора. Рабочие заметки не используются.',panel);var status=n('p','',panel);status.setAttribute('role','status');status.setAttribute('aria-live','polite');
 var admin=n('section',null,panel);admin.hidden=true;n('h3','Право обычной учётке',admin);var adminControls=n('fieldset',null,admin),label=n('label','Пользователь',adminControls),select=n('select',null,label);select.setAttribute('aria-label','Пользователь');button('Обновить',adminControls,function(){adminAction(null);});button('Выдать право',adminControls,function(){adminAction(true);});button('Отозвать право',adminControls,function(){adminAction(false);});
 var form=n('form',null,panel),controls=n('fieldset',null,form),grid=n('div',null,controls);grid.className='wv-benchmark-options';var inputs={};
-[['repetitions','Повторы',1,100,30],['warmup','Прогрев',0,10,3],['sizeKiB','Данные, KiB',1,256,64],['timeoutMs','Таймаут, ms',1000,30000,5000]].forEach(function(v){var l=n('label',v[1],grid),x=n('input',null,l);x.name=v[0];x.type='number';x.min=v[2];x.max=v[3];x.value=String(v[4]);x.required=true;inputs[v[0]]=x;});
+window.WebVaultBenchmarkPresentation.fields.forEach(function(v){var cell=n('div',null,grid),l=n('label',v[1],cell),x=n('input',null,l),help=n('small',v[5],cell);help.id='benchmarkHelp-'+v[0];help.className='wv-benchmark-help';x.setAttribute('aria-describedby',help.id);x.name=v[0];x.type='number';x.min=v[2];x.max=v[3];x.value=String(v[4]);x.required=true;inputs[v[0]]=x;x.addEventListener('input',refreshPlan);});
+var plan=n('p','',controls);plan.id='benchmarkPlan';plan.setAttribute('aria-live','polite');function refreshPlan(){var values={};Object.keys(inputs).forEach(function(k){values[k]=inputs[k].value;});plan.textContent=window.WebVaultBenchmarkPresentation.plan(values).text;}refreshPlan();
+n('p','В итоговое время входят запрос, получение ответа, разбор JSON и проверка текста. Пауза около 50 ms между шагами, создание запуска, очистка и вывод таблицы в него не входят. Предварительные запросы не гарантируют управляемый холодный или прогретый кэш.',form);
 var start=button('Запустить',controls,null);start.type='submit';var actions=n('div',null,panel);actions.className='wv-benchmark-actions';var cancel=button('Отменить',actions,function(){if(controller)controller.abort();}),exportButton=button('Экспорт JSON',actions,function(){if(!report)return;var url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json;charset=utf-8'})),a=n('a',null,null);a.href=url;a.download='webvault-benchmark-'+(/^[a-f0-9]{32}$/.test(report.runId||'')?report.runId:'incomplete')+'.json';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);});
+n('p','Медиана — центральное время среди измеряемых запросов. MAD — медиана отклонений от неё, не максимальная ошибка и не время сервера отдельно.',panel);
 var summary=n('div',null,panel),details=n('details',null,panel);n('summary','Подробный JSON',details);var raw=n('pre','',details);raw.className='wv-benchmark-output';
 function update(){controls.disabled=!canRun||!!controller;cancel.disabled=!controller;exportButton.disabled=!report;}
 function deactivate(){epoch++;if(controller)controller.abort();panel.hidden=true;tab.classList.remove('is-active');tab.setAttribute('aria-selected','false');report=null;users=[];select.textContent='';summary.textContent='';raw.textContent='';status.textContent='';canRun=false;admin.hidden=true;update();}
