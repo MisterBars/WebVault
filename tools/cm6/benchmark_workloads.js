@@ -44,7 +44,7 @@ export function createWorkloadRunner({extractReferences,makeGraph,forces,clock=(
    if(stopped||signal.aborted){row.status='skipped';row.reason=stopped??'cancelled';continue;}
    try{
     for(let i=0;i<c.warmup+c.repetitions;i++){
-     if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');await authorize();if(signal.aborted)throw Error('cancelled');
+     if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');await authorize();if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');
      const prepared=id.startsWith('graph.svg.')?makeGraph(fixture.notes):null;if(prepared)verifyGraph(prepared,fixture);
      const phase=i<c.warmup?'warmup':'measurement',t=clock();
      try{
@@ -56,7 +56,7 @@ export function createWorkloadRunner({extractReferences,makeGraph,forces,clock=(
       }else if(id==='graph.model.build'){verifyGraph(makeGraph(fixture.notes),fixture);}
       else {const geometry=await rendered(prepared,fixture,host,signal,Math.min(c.timeoutMs,Math.max(1,120000-(clock()-start))),id==='graph.svg.settled');if(row.renderGeometry&&(row.renderGeometry.width!==geometry.width||row.renderGeometry.height!==geometry.height))throw Error('render_geometry_changed');row.renderGeometry=geometry;}
       const elapsedMs=clock()-t;if(signal.aborted)throw Error('cancelled');if(elapsedMs>c.timeoutMs||clock()-start>=120000)throw Error('request_timeout');
-      await authorize();if(signal.aborted)throw Error('cancelled');row.samples.push({phase,status:'ok',elapsedMs});
+      await authorize();if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');row.samples.push({phase,status:'ok',elapsedMs});
      }catch(e){row.samples.push({phase,status:signal.aborted?'cancelled':e.message==='request_timeout'||e.message==='run_timeout'?'timeout':'error'});throw e;}
      if(i+1<c.warmup+c.repetitions)await pause(50);
     }row.status='ok';
