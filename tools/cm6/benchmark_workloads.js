@@ -35,18 +35,22 @@ export function createWorkloadRunner({extractReferences,makeGraph,forces,clock=(
    return {width:geometry.width,height:geometry.height,viewBox:'0 0 960 560',ticks,criterion:settled?'alpha<=0.01,delta<=1 SVG unit for 3 ticks,cap400':'one valid tick and following animation callback'};
   }finally{clearTimeout(timer);signal.removeEventListener('abort',abort);if(frame!==null)cancelRaf(frame);if(scene)scene.dispose();svg.remove();}
  }
- return {catalog:WORKLOADS,async execute(input,{signal,host,authorize}){
+ return {catalog:WORKLOADS,async execute(input,{signal,host,authorize,onProgress}){
   if(typeof authorize!=='function')throw Error('authorization_callback_required');
-  const c=workloadConfig(input),fixture=makeFixtures(c.dataset),start=clock(),results=[],batchId=makeBatchId();let stopped=null;
+  const c=workloadConfig(input),fixture=makeFixtures(c.dataset),start=clock(),results=[],batchId=makeBatchId();let stopped=null,completed=0;
+  const total=c.selected.length*(c.warmup+c.repetitions);
+  function emit(stage,id,index,phase,status){if(typeof onProgress!=='function')return;try{onProgress({stage,id,index,phase,status,completed,total});}catch(ignore){}}
   const report={schemaVersion:1,batchId,scope:'browser-synthetic-components',config:{...c,dataset:fixture.config},fixtureVersion:fixture.version,fixtureKey:fixture.key,fixtureBytes:fixture.bytes,conditions:{pacingMs:50,parseYieldEvery:8,includesValidation:true,renderModelPreparationExcluded:true},results,unavailable:['server note reads','server writes','full index HTTP path','physical paint','CPU','memory','concurrent users']};
+  emit('starting',null,null,null,null);
   for(const id of c.selected){
    const row={id,version:1,status:'pending',samples:[],statistics:null};results.push(row);
    if(stopped||signal.aborted){row.status='skipped';row.reason=stopped??'cancelled';continue;}
    try{
     for(let i=0;i<c.warmup+c.repetitions;i++){
      if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');await authorize();if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');
+     const phase=i<c.warmup?'warmup':'measurement';emit('step-start',id,i,phase,null);if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');
      const prepared=id.startsWith('graph.svg.')?makeGraph(fixture.notes):null;if(prepared)verifyGraph(prepared,fixture);
-     const phase=i<c.warmup?'warmup':'measurement',t=clock();
+     const t=clock();
      try{
       if(id==='markdown.references.batch'){
        for(let j=0;j<fixture.notes.length;j++){
@@ -56,13 +60,14 @@ export function createWorkloadRunner({extractReferences,makeGraph,forces,clock=(
       }else if(id==='graph.model.build'){verifyGraph(makeGraph(fixture.notes),fixture);}
       else {const geometry=await rendered(prepared,fixture,host,signal,Math.min(c.timeoutMs,Math.max(1,120000-(clock()-start))),id==='graph.svg.settled');if(row.renderGeometry&&(row.renderGeometry.width!==geometry.width||row.renderGeometry.height!==geometry.height))throw Error('render_geometry_changed');row.renderGeometry=geometry;}
       const elapsedMs=clock()-t;if(signal.aborted)throw Error('cancelled');if(elapsedMs>c.timeoutMs||clock()-start>=120000)throw Error('request_timeout');
-      await authorize();if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');row.samples.push({phase,status:'ok',elapsedMs});
-     }catch(e){row.samples.push({phase,status:signal.aborted?'cancelled':e.message==='request_timeout'||e.message==='run_timeout'?'timeout':'error'});throw e;}
+      await authorize();if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');row.samples.push({phase,status:'ok',elapsedMs});completed++;emit('step-end',id,i,phase,'ok');
+     }catch(e){row.samples.push({phase,status:signal.aborted?'cancelled':e.message==='request_timeout'||e.message==='run_timeout'?'timeout':'error'});emit('step-end',id,i,phase,row.samples[row.samples.length-1].status);throw e;}
      if(i+1<c.warmup+c.repetitions)await pause(50);
     }row.status='ok';
    }catch(e){row.status=signal.aborted?'cancelled':e.message==='request_timeout'||e.message==='run_timeout'?'timeout':'error';row.reason=/^[a-z_]+$/.test(e.message)?e.message:'workload_failed';stopped=row.status;}
    row.statistics=stats(row.samples.filter(s=>s.phase==='measurement'&&s.status==='ok').map(s=>s.elapsedMs));
   }
-  report.status=signal.aborted?'cancelled':results.every(r=>r.status==='ok')?'ok':'incomplete';report.cleanup='ok';return report;
+  emit('cleanup',null,null,null,null);
+  report.status=signal.aborted?'cancelled':results.every(r=>r.status==='ok')?'ok':'incomplete';report.cleanup='ok';emit('finished',null,null,null,report.status);return report;
  }};
 }
