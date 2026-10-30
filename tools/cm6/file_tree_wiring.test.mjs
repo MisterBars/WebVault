@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const tree=readFileSync(new URL('../../src/WebVault.Web/assets/js/file_tree.js',import.meta.url),'utf8'),shared=readFileSync(new URL('../../src/WebVault.Web/assets/js/file_tree_view.js',import.meta.url),'utf8');
+const begin=tree.indexOf('var b,sharedTreeView='),end=tree.indexOf('b.onclick=function',begin);
+assert.ok(begin>=0&&end>begin,'shared constructor branch missing');const branch=tree.slice(begin,end);
+class Element{constructor(doc,tag){this.ownerDocument=doc;this.tag=tag;this.children=[];this.dataset={};this.attributes={};}appendChild(n){this.children.push(n);}setAttribute(k,v){this.attributes[k]=String(v);}}
+function make(path,kind,active,expanded,useShared){const doc={createElement:t=>new Element(doc,t)},row=new Element(doc,'div'),context={document:doc,row,p:path,k:kind,level:2,S:{note:active?path:null},expanded:{[path]:expanded},base:p=>p.split('/').pop()};context.window=context;if(useShared)vm.runInNewContext(shared,context);const b=vm.runInNewContext('(function(){'+branch+'return b;}())',context);return {b,row,context};}
+function snapshot(b){return {text:b.textContent,type:b.type,classes:b.className,dataset:{...b.dataset},attributes:{...b.attributes}};}
+test('working tree branch yields identical rows with shared view and fallback',()=>{for(const [p,k] of [['','folder'],['Bench','folder'],['Bench/A.MD','file']])for(const active of [true,false])for(const expanded of [true,false]){const shared=make(p,k,active,expanded,true),fallback=make(p,k,active,expanded,false);assert.deepEqual(snapshot(shared.b),snapshot(fallback.b));assert.equal(shared.row.children.length,1);}});
+test('branch delegates to loaded version-one API with unchanged arguments',()=>{const f=make('Bench/A.md','file',true,false,false),sentinel={};let args;f.context.WebVaultFileTreeView={apiVersion:1,createButton(...values){args=values;return sentinel;}};const result=vm.runInNewContext('(function(){'+branch+'return b;}())',f.context);assert.equal(result,sentinel);assert.equal(args[0],f.row);assert.deepEqual(args.slice(1),['Bench/A.md','file',2,true,false]);});
+test('helper exception is not silently hidden by legacy fallback',()=>{const f=make('Bench/A.md','file',false,false,false);f.context.WebVaultFileTreeView={apiVersion:1,createButton(){throw Error('broken_helper');}};assert.throws(()=>vm.runInNewContext('(function(){'+branch+'return b;}())',f.context),/broken_helper/);});
+test('loader precedes ordered bundle and does not repaint an active name draft',()=>{assert.ok(tree.indexOf('document.head.appendChild(rowView)')<tree.indexOf('document.head.appendChild(cm)'));assert.ok(tree.includes('rowView.async=false'));assert.ok(tree.includes('cm.async=false'));assert.ok(tree.includes('rowView.onload=function(){if(ready()&&!edit)render();}'));});
