@@ -7,3 +7,6 @@
 #settingsBenchmarkPanel .wv-benchmark-output{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:650px){#settingsBenchmarkPanel .wv-benchmark-options{grid-template-columns:1fr}}
 #settingsBenchmarkPanel .wv-benchmark-help{display:block;margin:4px 0 12px;color:var(--text-muted);line-height:1.5}
+#settingsBenchmarkPanel .wv-benchmark-choice{display:flex;align-items:center;gap:8px}
+#settingsBenchmarkPanel input[type=checkbox]{width:auto;margin:0}
+#settingsBenchmarkPanel .wv-benchmark-preview{min-height:320px;border:1px solid var(--background-modifier-border);margin:12px 0}
