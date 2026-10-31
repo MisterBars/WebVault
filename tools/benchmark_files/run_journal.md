@@ -1,34 +1,42 @@
-# Benchmark run journal foundation
+<a id="benchmark-run-journal-foundation"></a>
 
-This is an independent metadata primitive, not an HTTP endpoint and not yet integrated with BenchmarkFileCycle. It does not create accounts, execute file cycles, delete test payloads or automatically recover orphaned runs. Do not publish a new benchmark action based only on these helpers.
+# Основа журнала запусков бенчмарка
 
-## Windows check
+Это отдельный модуль служебного состояния, не HTTP-маршрут; он ещё не объединён с BenchmarkFileCycle. Модуль не создаёт учётные записи, не выполняет файловые циклы, не удаляет тестовые файлы и не восстанавливает оставшиеся запуски автоматически. Не публикуйте новое действие бенчмарка только на основании этих вспомогательных модулей.
 
-From the repository root, in a fresh Windows PowerShell process:
+<a id="windows-check"></a>
+
+## Проверка в Windows
+
+Из корня репозитория запустите новый процесс Windows PowerShell:
 
 ```powershell
 powershell.exe -NoProfile -File .\tools\Test-BenchmarkRunJournal.ps1
 if ($LASTEXITCODE -ne 0) { throw 'Run-journal checks failed; stop' }
 ```
 
-Expected: PASS: 13/13 run-journal groups. This compiles only the new journal and its harness and uses a unique .wvj-* directory under the checkout, deleted in finally. No live DataRoot, IIS, SQL, npm or build is used. The assistant has not run the Windows check. The previous user-reported 12/12 file-cycle groups are not a journal-test result.
+Ожидаемый вывод: PASS: 13/13 run-journal groups. Компилируются только новый журнал и его тестовая обвязка; используется уникальный каталог .wvj-* внутри рабочей копии, удаляемый в finally. Рабочий DataRoot, IIS, SQL, npm и сборка не используются. Ассистент не выполнял эту Windows-проверку. Прежнее сообщение пользователя о12/12 группах файлового цикла не является результатом проверки журнала.
 
-## Contract
+<a id="contract"></a>
 
-The future host supplies an existing, server-resolved DataRoot/Bench/<runId> directory and binds its path to the expected run identity. The primitive checks existing ancestors/reparse points and directory length, but does not independently prove Bench ancestry or site exclusion. Never pass paths or identity fields directly from untrusted JSON. The host supplies authenticated owner, SessionId, grant generation, request ID and server run ID. There is no token, password or CSRF secret in the journal.
+## Контракт
 
-journal.bin is a bounded 122-byte versioned record: owner/session, three GUIDs, deadline, workload parameters, next step, phase and cleanup confirmation, followed by a SHA-256 checksum. The checksum detects corruption, not forgery or authentication; trusted filesystem ACLs remain essential. journal.lock is held exclusively during transitions across cooperating processes. Contention fails without retry. A new record is flushed to journal.new and moved/replaced into journal.bin. Leftover journal.new blocks reads and mutations as uncertain; it is never silently deleted or overwritten.
+Будущий вызывающий серверный код передаёт существующий каталог DataRoot/Bench/<runId>, путь к которому определён сервером, и связывает его с ожидаемой идентичностью запуска. Модуль проверяет существующих родителей пути, reparse points и длину каталога, но самостоятельно не доказывает принадлежность ветке Bench или нахождение вне сайта. Пути и поля идентичности нельзя передавать напрямую из недоверенного JSON. Серверный код предоставляет подтверждённые данные владельца, SessionId, поколение права, ID запроса и серверный ID запуска. Токен, пароль и CSRF-секрет в журнал не записываются.
 
-Initialize repeats return the existing matching record without resetting progress or extending its 120-second deadline. Conflicting identity/configuration fails. Discovery of a run from a lost start response and global capacity reservation are NOT provided by this class. The future host must durably map request identity to run path before any payload mutation.
+journal.bin — ограниченная запись версии формата длиной122 байта: владелец/сессия, три GUID, срок действия, параметры нагрузки, следующий шаг, фаза и подтверждение очистки, затем контрольная сумма SHA-256. Она выявляет повреждение, но не подделку и не заменяет аутентификацию; доверенные права файловой системы остаются необходимыми. Во время переходов состояния journal.lock удерживается исключительно для взаимодействующих процессов. Конфликт блокировки приводит к отказу без повторения. Новая запись сбрасывается на диск в journal.new, затем перемещается в journal.bin или заменяет его. Оставшийся journal.new блокирует чтение и изменения как неопределённое состояние; он не удаляется и не перезаписывается молча.
 
-Begin writes phase 1 (working) before payload mutation. A reopened working record must not replay the step. Complete advances next only from the matching working step after the host has verified the file operation. A repeated Complete fails instead of advancing twice; the caller must query status after a lost response and discard the uncertain timing. The journal stores no samples or successful HTTP timing.
+Повторный Initialize возвращает существующую совпадающую запись без сброса прогресса или продления120-секундного срока действия. Несовпадение идентичности/конфигурации вызывает отказ. Поиск запуска после потери ответа на начало и резервирование общей ёмкости этим классом не реализованы. Будущий серверный код обязан сохранить соответствие идентификатора запроса пути запуска до любого изменения тестовых файлов.
 
-Phases: 0 ready, 1 working/uncertain, 2 stopped. Begin/Complete require the stored grant generation, a mandatory live authorization callback, UTC clock supplied by trusted host code, and a nonexpired/nonstopped run. The clock is sampled after the second authorization callback to reject expiration during authorization. Callbacks in the harness are test doubles, not permission checks.
+Begin записывает фазу1 — выполнение — до изменения файлов. Шаг из повторно открытой записи в этой фазе нельзя исполнять заново. Complete увеличивает next только для соответствующего выполняемого шага после проверки файловой операции вызывающим кодом. Повторный Complete отклоняется вместо второго увеличения счётчика; после потерянного ответа вызывающая сторона должна запросить состояние и отбросить неопределённый замер. Журнал не хранит измерения или время успешного HTTP-запроса.
 
-Read/Stop/ConfirmCleanup require same-owner/same-session authentication callbacks but not the original still-active benchmark grant, so revocation need not prevent safe cleanup. Ownership/run/request mismatches fail. Stop does not delete payload. ConfirmCleanup requires stopped state and a mandatory host callback that verifies the permitted payload is absent; journal metadata itself may remain. The host must implement that verification, not provide a no-op callback. Failed verification cannot set cleanup confirmation.
+Фазы:0 — готовность,1 — выполнение/неопределённость,2 — остановка. Begin/Complete требуют сохранённого поколения права, обязательного callback актуальной проверки полномочий, часов UTC из доверенного серверного кода и неистёкшего/неостановленного запуска. Часы опрашиваются после второго callback проверки полномочий, чтобы отклонить истечение срока во время авторизации. Callback в тестовой обвязке — тестовые заменители, не проверки настоящих полномочий.
 
-The test covers reopen, duplicate initialization/start/complete, ownership/session/request mismatches, generation/auth refusal, expiry during authorization, stop and cleanup verification, corruption, interrupted-write residue, exclusive locking, config conflict and exhausted steps. It does not kill IIS, prove power-loss durability, exercise malicious OS administrators/reparse races, authenticate SQL sessions or test a browser. Restart is modeled by separate disk reads with no in-memory run registry.
+Read/Stop/ConfirmCleanup требуют callback аутентификации того же владельца/сессии, но не сохранения первоначального права бенчмарка: его отзыв не должен препятствовать безопасной очистке. Несовпадение владельца, запуска или запроса вызывает отказ. Stop не удаляет файлы. ConfirmCleanup требует остановленного состояния и обязательного callback серверного кода, проверяющего отсутствие допустимых тестовых файлов; сами служебные файлы журнала могут оставаться. Серверный код обязан реализовать проверку, а не передавать пустой callback. Неуспешная проверка не устанавливает подтверждение очистки.
 
-## Remaining integration
+Тест охватывает повторное открытие, повторные инициализацию/начало/завершение, несовпадения владельца/сессии/запроса, отказ поколения права/авторизации, истечение срока во время авторизации, остановку и проверку очистки, повреждение, остаток прерванной записи, исключительную блокировку, конфликт конфигурации и исчерпание шагов. Он не завершает IIS принудительно, не доказывает устойчивость к потере питания, не проверяет злонамеренного администратора ОС/гонки reparse points, не аутентифицирует SQL-сессии и не запускает браузер. Перезапуск моделируется отдельными чтениями с диска без реестра запусков в памяти.
 
-Connect the journal and file-cycle helper under one consistent run layout/locking discipline; add durable request lookup, per-owner/global quotas, bounded orphan cleanup, SQL/session/grant adapter, endpoint and transport/UI alignment. Existing BenchmarkFileCycle cleanup currently knows only its own marker and payload names; do not place journal files into its invocation directory without updating that contract and tests. Canonical benchmark/backlog/history updates accompany the connected feature, not a claim that it already works.
+<a id="remaining-integration"></a>
+
+## Оставшаяся интеграция
+
+Объединить журнал и файловое ядро с согласованной структурой запуска и порядком блокировок; добавить сохраняемый поиск по запросу, квоты владельца и общие квоты, ограниченную очистку остатков, адаптер SQL/сессии/права, HTTP-маршрут и согласование транспорта/интерфейса. Нынешняя очистка BenchmarkFileCycle знает только собственный маркер и имена тестовых файлов; нельзя помещать файлы журнала в каталог его вызова без обновления контракта и тестов. Обновление канонического руководства бенчмарка, backlog и истории сопровождает подключённую функцию, а не объявляет её уже работающей.
