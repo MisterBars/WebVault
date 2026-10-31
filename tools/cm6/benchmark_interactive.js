@@ -9,16 +9,20 @@ const required=s=>s.zoomEvents>0&&s.panGestures>0&&s.nodeDrags>0&&s.hoverEvents>
 function statistics(values){if(!values.length)return null;const a=values.slice().sort((x,y)=>x-y),median=x=>x.length%2?x[(x.length-1)/2]:(x[x.length/2-1]+x[x.length/2])/2,m=median(a);return {unit:'ms',count:a.length,median:m,min:a[0],max:a.at(-1),mad:median(a.map(x=>Math.abs(x-m)).sort((x,y)=>x-y))};}
 export function createWorkloadRunner(options){
  const automatic=createAutomaticRunner(options),{makeGraph,forces,loadIndex=loadIndexFromSource,prepareIndex=loadBenchmarkIndex,clock=()=>performance.now(),raf=f=>requestAnimationFrame(f),cancelRaf=id=>cancelAnimationFrame(id),pause=ms=>new Promise(r=>setTimeout(r,ms)),setTimer=setTimeout,clearTimer=clearTimeout,makeBatchId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join('')}=options;
- async function sceneCheck(graph,fixture,host,signal,until,check,cleanupError){
+ async function sceneCheck(graph,fixture,host,signal,until,check,cleanupError,step){
   if(!host?.isConnected)throw Error('graph_host_unavailable');
-  const doc=host.ownerDocument,svg=doc.createElementNS('http://www.w3.org/2000/svg','svg'),prompt=doc.createElement('p');
+  const doc=host.ownerDocument,svg=doc.createElementNS('http://www.w3.org/2000/svg','svg'),prompt=doc.createElement('p'),status=doc.createElement('p');
   prompt.textContent='Ручная проверка: измените масштаб колесом, переместите фон, перетащите узел больше чем на 4 SVG-единицы и наведите указатель на узел. После четырёх действий повтор завершится. Клики не открывают заметки.';
+  const stage=(step.phase==='warmup'?'Прогрев':'Измерение')+' '+step.number+' из '+step.total+'. ';
+  status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.setAttribute('aria-atomic','true');
+  status.style.flex='0 0 4.5em';status.style.height='4.5em';status.style.lineHeight='1.5';status.style.overflow='auto';status.style.margin='0';status.textContent=stage+'Ожидание валидного кадра.';
+  function updateStatus(s){const missing=[['zoomEvents','масштабирование'],['panGestures','перемещение фона (потяните пустое место)'],['nodeDrags','перетаскивание узла'],['hoverEvents','наведение на узел']].filter(([key])=>!(s[key]>0)).map(([,label])=>label);const text=stage+(missing.length?'Осталось: '+missing.join('; ')+'.':'Все четыре действия выполнены.');if(status.textContent!==text)status.textContent=text;}
   svg.setAttribute('viewBox','0 0 960 560');svg.setAttribute('class','wv-graph-svg');svg.setAttribute('aria-label','Ручная проверка синтетического графа');svg.style.width='100%';svg.style.height='320px';
   const viewport=doc.createElementNS(svg.namespaceURI,'g');svg.appendChild(viewport);
   const nodes=graph.nodes.map(n=>({...n})),edges=graph.edges.map(e=>({...e}));let scene=null,interaction=null,frame=null,timer=null,abort=null,done=false,ready=false,ticks=0,failure=null,geometry=null,snapshot=null;
   function bounds(){if(!host.isConnected)throw Error('graph_host_unavailable');const r=svg.getBoundingClientRect();if(!(r.width>0&&r.height>0))throw Error('graph_host_not_visible');return {width:r.width,height:r.height};}
   try{
-   host.appendChild(prompt);host.appendChild(svg);geometry=bounds();
+   host.appendChild(prompt);host.appendChild(status);host.appendChild(svg);geometry=bounds();
    await new Promise((resolve,reject)=>{
     const finish=e=>{if(done)return;done=true;e?reject(e):resolve();};abort=()=>finish(Error('cancelled'));signal.addEventListener('abort',abort,{once:true});
     try{
@@ -26,14 +30,14 @@ export function createWorkloadRunner(options){
      scene=mountGraphScene({viewport,nodes,edges,forces,onFrame:()=>{if(!done)ticks++;},onEnter:n=>interaction?.enter(n),onLeave:()=>interaction?.leave(),onVisit:n=>interaction?.activate(n)});
      interaction=createGraphInteraction({svg,viewport,getNodes:()=>nodes,getEdges:()=>edges,getSimulation:()=>scene.simulation,isActive:()=>ready&&!done&&!signal.aborted&&host.isConnected});
      function poll(){frame=null;if(done)return;try{check();if(clock()>=until)throw Error('interaction_not_completed');const g=bounds();if(g.width!==geometry.width||g.height!==geometry.height)throw Error('render_geometry_changed');
-      if(ticks>0){if(nodes.some(n=>!Number.isFinite(n.x)||!Number.isFinite(n.y))||edges.some(e=>!Number.isFinite(e.source.x)||!Number.isFinite(e.source.y)||!Number.isFinite(e.target.x)||!Number.isFinite(e.target.y))||viewport.querySelectorAll('circle').length!==fixture.notes.length||viewport.querySelectorAll('line').length!==fixture.expectedEdges)throw Error('incorrect_rendered_graph');ready=true;if(required(interaction.snapshot())){finish();return;}}
+      if(ticks>0){if(nodes.some(n=>!Number.isFinite(n.x)||!Number.isFinite(n.y))||edges.some(e=>!Number.isFinite(e.source.x)||!Number.isFinite(e.source.y)||!Number.isFinite(e.target.x)||!Number.isFinite(e.target.y))||viewport.querySelectorAll('circle').length!==fixture.notes.length||viewport.querySelectorAll('line').length!==fixture.expectedEdges)throw Error('incorrect_rendered_graph');ready=true;const current=interaction.snapshot();updateStatus(current);if(required(current)){finish();return;}}
       frame=raf(poll);
      }catch(e){finish(e);}}
      timer=setTimer(()=>{try{check();finish(Error('interaction_not_completed'));}catch(e){finish(e);}},Math.max(1,until-clock()));frame=raf(poll);
     }catch(e){finish(e);}
    });
   }catch(e){failure=e;}
-  finally{done=true;if(timer!==null)clearTimer(timer);if(abort)signal.removeEventListener('abort',abort);if(frame!==null)cancelRaf(frame);try{interaction?.dispose();}catch(e){cleanupError();}snapshot=interaction?.snapshot()||null;try{scene?.dispose();}catch(e){cleanupError();}finally{svg.remove();prompt.remove();}}
+  finally{done=true;if(timer!==null)clearTimer(timer);if(abort)signal.removeEventListener('abort',abort);if(frame!==null)cancelRaf(frame);try{interaction?.dispose();}catch(e){cleanupError();}snapshot=interaction?.snapshot()||null;try{scene?.dispose();}catch(e){cleanupError();}finally{svg.remove();prompt.remove();status.remove();}}
   if(failure){failure.interactions=snapshot;throw failure;}
   return {geometry:{...geometry,viewBox:'0 0 960 560',ticks,criterion:'valid_frame_and_completed_zoom_pan_drag_hover'},interactions:snapshot};
  }
@@ -51,7 +55,7 @@ export function createWorkloadRunner(options){
   try{for(let i=0;i<total;i++){
    await permission();const phase=i<c.warmup?'warmup':'measurement';emit('step-start',i,phase);check();
    const began=clock(),indexed=await prepareIndex(fixture,{loadIndex,signal,check,pause});check();row.indexPreparation.push({phase,elapsedMs:clock()-began,...indexed.statistics});const graph=makeGraph(indexed.notes);verifyGraph(graph,fixture);check();const t=clock();let result;
-   try{result=await sceneCheck(graph,fixture,host,signal,Math.min(t+c.timeoutMs,deadline),check,()=>{cleanup='unconfirmed';});const elapsedMs=clock()-t;check();if(elapsedMs>c.timeoutMs)throw Error('interaction_not_completed');await permission();if(row.renderGeometry&&(row.renderGeometry.width!==result.geometry.width||row.renderGeometry.height!==result.geometry.height))throw Error('render_geometry_changed');row.renderGeometry=result.geometry;row.samples.push({phase,status:'ok',elapsedMs,interactions:result.interactions});completed++;emit('step-end',i,phase,'ok');}
+   try{result=await sceneCheck(graph,fixture,host,signal,Math.min(t+c.timeoutMs,deadline),check,()=>{cleanup='unconfirmed';},{phase,number:phase==='warmup'?i+1:i-c.warmup+1,total:phase==='warmup'?c.warmup:c.repetitions});const elapsedMs=clock()-t;check();if(elapsedMs>c.timeoutMs)throw Error('interaction_not_completed');await permission();if(row.renderGeometry&&(row.renderGeometry.width!==result.geometry.width||row.renderGeometry.height!==result.geometry.height))throw Error('render_geometry_changed');row.renderGeometry=result.geometry;row.samples.push({phase,status:'ok',elapsedMs,interactions:result.interactions});completed++;emit('step-end',i,phase,'ok');}
    catch(e){row.samples.push({phase,status:state(e),interactions:e.interactions||result?.interactions||null});emit('step-end',i,phase,state(e));throw e;}
    if(i+1<total){check();await pause(50);check();}
   }row.status='ok';}catch(e){row.status=state(e);row.reason=/^[a-z_]+$/.test(e?.message)?e.message:'interaction_failed';}
