@@ -24,11 +24,11 @@ const treeSource=readFileSync(new URL('../../src/WebVault.Web/assets/js/file_tre
 function working({shared=true,request=async()=>({files:['Folder/A.md'],folders:[]})}={}){
  const context={};if(shared)vm.runInNewContext(source,context);
  const state={user:{id:1},csrf:'a',hasVault:true,folder:'Folder'},calls=[];
- const a=treeSource.indexOf('var sharedSource=null;'),b=treeSource.indexOf("['file_tree.css'",a);
+ const a=treeSource.indexOf('function listingSource(){'),b=treeSource.indexOf("['file_tree.css'",a);
  assert.ok(a>=0&&b>a);
  const c=treeSource.indexOf('function load(p){'),d=treeSource.indexOf('function setFolder(p)',c);
  assert.ok(c>=0&&d>c);
- const box={window:context,S:state,cache:Object.create(null),expanded:{'':true,Folder:true},A:{protectedApi:async(url,data)=>{calls.push({url,data});return request();}},ready:()=>!!state.user&&state.hasVault,hide(){},render(){},encodeURIComponent};
+ const box={window:context,S:state,sharedSource:null,cache:Object.create(null),expanded:{'':true,Folder:true},A:{protectedApi:async(url,data)=>{calls.push({url,data});return request();}},ready:()=>!!state.user&&state.hasVault,hide(){},render(){},encodeURIComponent};
  vm.runInNewContext(treeSource.slice(a,b)+treeSource.slice(c,d)+';globalThis.functions={load,refresh,resetCache,getCache:()=>cache};',box);
  return {state,calls,functions:box.functions};
 }
