@@ -7,7 +7,7 @@ Set-StrictMode -Version 2
 $repo = Split-Path (Split-Path $MyInvocation.MyCommand.Path -Parent) -Parent
 $route = [System.IO.File]::ReadAllText((Join-Path $repo 'src\WebVault.Web\api\benchmark_files.ashx'))
 if ($route.Trim() -ne '<%@ WebHandler Language="C#" Class="WebVault.BenchmarkFilesHandler" %>') { throw 'Неверная привязка HTTP-обработчика' }
-$imports = 'using System; using System.Collections.Generic; using System.Configuration; using System.Data; using System.Data.SqlClient; using System.Diagnostics; using System.Globalization; using System.IO; using System.Security.Cryptography; using System.Text; using System.Text.RegularExpressions; using System.Web; using System.Web.Script.Serialization;'
+$imports = 'using System; using System.Collections.Generic; using System.Configuration; using System.Data; using System.Data.SqlClient; using System.Diagnostics; using System.Globalization; using System.IO; using System.Security.Cryptography; using System.Text; using System.Text.RegularExpressions; using System.Threading; using System.Web; using System.Web.Caching; using System.Web.Script.Serialization;'
 $parts = @()
 foreach ($file in (Get-ChildItem (Join-Path $repo 'src\WebVault.Web\App_Code') -Filter '*.cs' | Sort-Object Name)) {
     $text = [System.IO.File]::ReadAllText($file.FullName)
@@ -45,6 +45,7 @@ namespace WebVaultFilesProtocolTests
         public static int Run()
         {
             int passed = 0;
+            Check(typeof(SemaphoreSlim) == typeof(System.Threading.SemaphoreSlim) && typeof(Cache) == typeof(System.Web.Caching.Cache),"Потеряны пространства имён серверных типов");
             BenchmarkFilesHandler.Command c = BenchmarkFilesHandler.Parse(Start());
             Check(c.Action == "start" && c.Request.ToString("N") == Request && c.Actors == 2 && c.SizeKiB == 1 && c.Count == 2,"Неверные параметры начала"); passed++;
             foreach (string action in new[] {"status","cancel"}) Check(BenchmarkFilesHandler.Parse(Input(action)).Action == action,"Неверное действие");
