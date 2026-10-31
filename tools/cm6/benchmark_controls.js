@@ -18,13 +18,14 @@ export function installWorkloadControls(root=window){
    number('notes','Заметок в корпусе (2–300)',2,300,100);number('linksPerNote','Связей на заметку (0–6, меньше числа заметок)',0,6,3);number('noteKiB','Размер каждой заметки, KiB (1–64)',1,64,4);number('seed','Seed корпуса',0,2147483647,1);number('repetitions','Измеряемые повторы компонентов (1–10)',1,10,3);number('warmup','Предварительные повторы компонентов (0–3)',0,3,1);number('timeoutMs','Лимит операции компонента, ms',1000,30000,10000);
    const plan=n('p','',controls);plan.setAttribute('aria-live','polite');
    n('p','Первый кадр означает корректный SVG и координаты после расчёта, не физический paint. Стабилизация: alpha≤0.01 и смещение≤1 SVG-единицы три tick подряд, максимум400 tick. Размер SVG записывается в результат. Разбор корпуса включает кооперативные паузы каждые8 заметок и проверку ссылок.',section);
-   n('p','Режим графа: автоматический. Интерактивный режим (масштабирование, перемещение, перетаскивание узлов и подсветка при наведении) пока недоступен в этом запуске.',section);
+   const supportsInteractive=typeof root.WebVaultBenchmarkWorkloads?.executeInteractive==='function';
+   n('p',supportsInteractive?'Автоматические действия и ручная проверка запускаются отдельно. Ручная проверка использует параметры корпуса, повторов, прогрева и таймаута выше. В каждом повторе измените масштаб колесом, переместите фон, перетащите узел и наведите на него указатель. Её время включает ожидание пользователя и не измеряет скорость отрисовки. Для первой проверки удобно задать 1 повтор, 0 прогрева и таймаут 30000 мс.':'Режим графа: автоматический. Интерактивный режим (масштабирование, перемещение, перетаскивание узлов и подсветка при наведении) пока недоступен в этом запуске.',section);
    n('p','Ограничения индекса пока не повышаются. Для сотен/тысяч пользователей и узлов нельзя считать недоступный сценарий успешным.',section);
    const host=n('div',null,section);host.className='wv-benchmark-preview';host.hidden=true;host.setAttribute('aria-label','Изолированный тестовый граф');
    let enabled=false,running=false;const ids=()=>Array.from(selected).filter(([,i])=>i.checked).map(([id])=>id);
    function required(k){const x=inputs[k],v=x.value.trim()===''?NaN:Number(x.value);if(!Number.isInteger(v)||v<Number(x.min)||v>Number(x.max))throw Error('invalid_component_parameter');return v;}
    const dataset=()=>datasetConfig(Object.fromEntries(['notes','linksPerNote','noteKiB','seed'].map(k=>[k,required(k)])));
-   function updatePlan(){try{const d=dataset();plan.textContent='Корпус: '+d.notes+' заметок, '+d.notes*d.linksPerNote+' связей, '+d.notes*d.noteKiB+' KiB текста. Это не число пользователей.';}catch{plan.textContent='Проверьте объём и сочетания параметров корпуса.';}run.disabled=!enabled||running||!ids().length;api.setHTTPVisible(selected.get('http.synthetic.read').checked);}
+   function updatePlan(){try{const d=dataset();plan.textContent='Корпус: '+d.notes+' заметок, '+d.notes*d.linksPerNote+' связей, '+d.notes*d.noteKiB+' KiB текста. Это не число пользователей.';}catch{plan.textContent='Проверьте объём и сочетания параметров корпуса.';}run.disabled=!enabled||running||!ids().length;manual.disabled=!enabled||running||!supportsInteractive;api.setHTTPVisible(selected.get('http.synthetic.read').checked);}
    const run=api.runButton('Запустить выбранные действия',()=>{
     const chosen=ids();if(!chosen.length)return;const local=chosen.filter(id=>id!=='http.synthetic.read');let data,parameters;try{if(local.length){data=dataset();parameters={repetitions:required('repetitions'),warmup:required('warmup'),timeoutMs:required('timeoutMs')};}}catch(e){api.message(e.message);return;}
     return api.run(async context=>{
@@ -37,6 +38,12 @@ export function installWorkloadControls(root=window){
      return {schemaVersion:1,scope:'browser-selected-synthetic-workloads',status:results.every(x=>x.status==='ok')?'ok':context.signal.aborted?'cancelled':'incomplete',cleanup:results.some(x=>x.cleanup==='unconfirmed')?'unconfirmed':'ok',results};
     });
    });
+   const manual=button('Ручная проверка графа',controls,()=>{
+    if(!enabled||running||!supportsInteractive)return;const runner=root.WebVaultBenchmarkWorkloads;let input;
+    try{input={dataset:dataset(),repetitions:required('repetitions'),warmup:required('warmup'),timeoutMs:required('timeoutMs')};}catch(e){api.message('Проверьте параметры корпуса и повторов.');return;}
+    importEpoch++;const task=api.run(async context=>{if(typeof registry.clear==='function')registry.clear();host.hidden=false;try{return await runner.executeInteractive(input,{host,signal:context.signal,authorize:context.authorize,onProgress:context.onProgress});}finally{host.hidden=true;}});
+    const dialog=owner.closest?.('dialog');if(dialog?.id==='benchmarkOptionsDialog'&&dialog.open)dialog.close();return task;
+   });manual.hidden=!supportsInteractive;
    for(const input of selected.values())input.addEventListener('change',updatePlan);
    api.hideHTTPStart();
    const load=n('details',null,owner);n('summary','Независимые пользователи: внешний генератор',load);n('p','Этот профиль сейчас выполняет только http.synthetic.read под отдельными тестовыми учётками. Он не создаёт браузеры и не рисует несколько графов. Генератор запускается на тестовом ПК, не в IIS. Пароли в сайт не загружаются.',load);

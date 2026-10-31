@@ -1,6 +1,6 @@
 import {createGraphInteraction} from './graph_interaction.js';
 import {mountGraphScene} from './graph_scene.js';
-import {createWorkloadRunner} from './benchmark_workloads.js';
+import {createWorkloadRunner} from './benchmark_interactive.js';
 import {installWorkloadControls} from './benchmark_controls.js';
 import {forceSimulation,forceLink,forceManyBody,forceCenter,forceCollide} from 'd3-force';
 import {getNoteIndex,extractReferences,makeGraph} from './note_index.js';
