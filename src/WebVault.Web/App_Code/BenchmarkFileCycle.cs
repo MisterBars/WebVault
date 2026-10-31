@@ -74,7 +74,7 @@ namespace WebVault
             authorize();
             if (watch.ElapsedMilliseconds >= 120000) Fail("benchmark_deadline");
         }
-        static string Root(string dataRoot)
+        static string Root(string dataRoot, bool allowCreate = true)
         {
             if (String.IsNullOrEmpty(dataRoot) || !Regex.IsMatch(dataRoot, @"\A[A-Za-z]:[\\/]")) Fail("benchmark_root_invalid");
             string data = Path.GetFullPath(dataRoot).TrimEnd('\\', '/');
@@ -85,6 +85,7 @@ namespace WebVault
             bool existed = Directory.Exists(bench);
             if (!existed)
             {
+                if (!allowCreate) Fail("benchmark_root_missing");
                 Directory.CreateDirectory(bench); Plain(bench);
                 // A crash before the marker leaves an unclaimed directory: fail closed next time.
                 try { WriteNew(marker, Utf8.GetBytes(Magic)); }
@@ -132,7 +133,50 @@ namespace WebVault
         /// Existing unknown Bench directories are never adopted or recursively removed.
         /// Residue from process termination counts against the 32-directory quota.
         /// </summary>
+        // Привязка версии1: SHA-256 от пространства имён, ID журнала и номера шага.
+        // Это адресация, не секрет и не замена проверки владельца/сессии.
+        public static string BoundId(Guid journalRun, int index)
+        {
+            if (journalRun == Guid.Empty || index < 0 || index > 103) throw new ArgumentException("benchmark_binding_invalid");
+            byte[] input = Utf8.GetBytes("WebVault.Bench.Payload.v1|" + journalRun.ToString("N") + "|" + index.ToString(CultureInfo.InvariantCulture));
+            using (System.Security.Cryptography.SHA256 hash = System.Security.Cryptography.SHA256.Create())
+            {
+                byte[] first = new byte[16]; Buffer.BlockCopy(hash.ComputeHash(input), 0, first, 0, 16);
+                return new Guid(first).ToString("N");
+            }
+        }
+        public static Result ExecuteBound(string dataRoot, Guid journalRun, int index, int actors, int sizeKiB, Action authorize)
+        { return ExecuteNamed(dataRoot, BoundId(journalRun, index), actors, sizeKiB, authorize); }
+        static bool Present(string bench, string path)
+        {
+            foreach (string entry in Directory.EnumerateFileSystemEntries(bench))
+                if (String.Equals(entry, path, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+        // Вызывается только после остановки журнала под operation.lock этого запуска.
+        // Callback подтверждает прежнюю сессию даже после отзыва отдельного права.
+        public static void RecoverBound(string dataRoot, Guid journalRun, int index, int actors, Action authenticateSameSession)
+        {
+            string id = BoundId(journalRun, index);
+            if (actors < 1 || actors > 8) throw new ArgumentOutOfRangeException("actors");
+            if (authenticateSameSession == null) throw new ArgumentNullException("authenticateSameSession");
+            authenticateSameSession(); string bench = Root(dataRoot, false), lockPath = Child(bench, "root.lock");
+            if (Directory.Exists(lockPath)) Fail("benchmark_lock_invalid");
+            if (File.Exists(lockPath)) Regular(lockPath);
+            using (FileStream gate = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+            {
+                Plain(bench); Verify(Child(bench, ".wv-bench-root"), Utf8.GetBytes(Magic)); authenticateSameSession();
+                string run = Child(bench, id);
+                if (!Present(bench, run)) return;
+                string owner = "WebVault Bench cycle v1|" + id + "|" + actors.ToString(CultureInfo.InvariantCulture) + "\n";
+                Cleanup(run, owner, actors);
+                if (Present(bench, run)) Fail("benchmark_cleanup_unconfirmed");
+                authenticateSameSession();
+            }
+        }
         public static Result Execute(string dataRoot, int actors, int sizeKiB, Action authorize)
+        { return ExecuteNamed(dataRoot, Guid.NewGuid().ToString("N"), actors, sizeKiB, authorize); }
+        static Result ExecuteNamed(string dataRoot, string id, int actors, int sizeKiB, Action authorize)
         {
             if (authorize == null) throw new ArgumentNullException("authorize");
             if (actors < 1 || actors > 8 || sizeKiB < 1 || sizeKiB > 64) throw new ArgumentOutOfRangeException("parameters");
@@ -154,7 +198,7 @@ namespace WebVault
                     Plain(entry); if (++directories >= 32) Fail("benchmark_capacity");
                 }
                 Budget(budget, authorize);
-                string id = Guid.NewGuid().ToString("N"), run = Child(bench, id), owner = "WebVault Bench cycle v1|" + id + "|" + actors.ToString(CultureInfo.InvariantCulture) + "\n";
+                string run = Child(bench, id), owner = "WebVault Bench cycle v1|" + id + "|" + actors.ToString(CultureInfo.InvariantCulture) + "\n";
                 if (File.Exists(run) || Directory.Exists(run)) Fail("benchmark_collision");
                 Directory.CreateDirectory(run); Plain(run);
                 // Marker creation failure leaves unclaimed residue, never a cleanup target.
