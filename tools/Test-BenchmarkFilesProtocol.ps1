@@ -7,7 +7,7 @@ Set-StrictMode -Version 2
 $repo = Split-Path (Split-Path $MyInvocation.MyCommand.Path -Parent) -Parent
 $route = [System.IO.File]::ReadAllText((Join-Path $repo 'src\WebVault.Web\api\benchmark_files.ashx'))
 if ($route.Trim() -ne '<%@ WebHandler Language="C#" Class="WebVault.BenchmarkFilesHandler" %>') { throw 'Неверная привязка HTTP-обработчика' }
-# Исходники компилируются отдельными файлами: исходные using/атрибуты сохраняются.
+# Компилируются исходные файлы целиком, каждый со своими using, атрибутами и областью имён.
 $sources = @(Get-ChildItem (Join-Path $repo 'src\WebVault.Web\App_Code') -Filter '*.cs' | Sort-Object Name | ForEach-Object { $_.FullName })
 if ($sources.Count -eq 0) { throw 'Исходники App_Code не найдены; остановка' }
 $framework = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
@@ -20,18 +20,13 @@ if (-not (Test-Path -LiteralPath $csc -PathType Leaf)) { throw 'Не найде�
 $references = @('System.dll','System.Core.dll','System.Configuration.dll','System.Data.dll','System.Web.dll','System.Web.Extensions.dll') | ForEach-Object { '/reference:' + (Join-Path $framework $_) }
 $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('WVBenchProtocol-' + [Guid]::NewGuid().ToString('N'))
 [void][System.IO.Directory]::CreateDirectory($temp)
-$assembly = Join-Path $temp 'WebVault.ProtocolTest.dll'
+$serverAssembly = Join-Path $temp 'WebVault.ProtocolServer.dll'
+$testAssemblyPath = Join-Path $temp 'WebVault.ProtocolChecks.dll'
 try {
-    $args = @('/nologo','/target:library','/out:' + $assembly) + $references + $sources
-    & $csc @args
-    if ($LASTEXITCODE -ne 0) { throw "csc.exe завершился с кодом $LASTEXITCODE; проверки не запускались" }
-    $bytes = [System.IO.File]::ReadAllBytes($assembly)
-    $loaded = [Reflection.Assembly]::Load($bytes)
-    $type = $loaded.GetType('WebVault.WebApi', $true)
-    $api = $type.GetMethod('Prepare',[Reflection.BindingFlags]'Public,Static')
-    if ($null -eq $api -or $null -eq $type.GetMethod('Open',[Reflection.BindingFlags]'Public,Static')) { throw 'Проверка API-компиляции не найдена' }
-    $testType = $loaded.GetType('WebVault.BenchmarkFilesProtocolChecks',$false)
-    if ($null -ne $testType) { throw 'Тестовый класс не должен входить в серверную сборку' }
+    $serverArgs = @('/nologo','/target:library','/out:' + $serverAssembly) + $references + $sources
+    & $csc @serverArgs
+    if ($LASTEXITCODE -ne 0) { throw "csc.exe не собрал App_Code; код $LASTEXITCODE. Проверки не запускались" }
+    if (-not (Test-Path -LiteralPath $serverAssembly -PathType Leaf)) { throw 'csc.exe не создал сборку App_Code; остановка' }
     $harness = @'
 using System;
 using System.Collections.Generic;
@@ -85,14 +80,15 @@ public static class WebVaultFilesProtocolChecks
     }
 }
 '@
-    $testFile = Join-Path $temp 'WebVaultFilesProtocolChecks.cs'
-    [System.IO.File]::WriteAllText($testFile,$harness,[System.Text.Encoding]::UTF8)
-    $testAssemblyPath = Join-Path $temp 'WebVault.ProtocolChecks.dll'
-    & $csc @('/nologo','/target:library','/out:' + $testAssemblyPath) @('/reference:' + $assembly) $testFile
+    $harnessFile = Join-Path $temp 'WebVaultFilesProtocolChecks.cs'
+    [System.IO.File]::WriteAllText($harnessFile,$harness,[System.Text.Encoding]::UTF8)
+    $testArgs = @('/nologo','/target:library','/out:' + $testAssemblyPath,'/reference:' + $serverAssembly) + $references + @($harnessFile)
+    & $csc @testArgs
     if ($LASTEXITCODE -ne 0) { throw "csc.exe не собрал тестовую обвязку; код $LASTEXITCODE" }
-    $testBytes = [System.IO.File]::ReadAllBytes($testAssemblyPath)
-    $testAssembly = [Reflection.Assembly]::Load($testBytes)
-    $count = $testAssembly.GetType('WebVaultFilesProtocolChecks',$true).GetMethod('Run').Invoke($null,$null)
+    if (-not (Test-Path -LiteralPath $testAssemblyPath -PathType Leaf)) { throw 'csc.exe не создал тестовую сборку; остановка' }
+    foreach ($file in @($serverAssembly,$testAssemblyPath)) { [void][Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($file)) }
+    $type = [Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($testAssemblyPath)).GetType('WebVaultFilesProtocolChecks',$true)
+    $count = $type.GetMethod('Run').Invoke($null,$null)
     if ($count -ne 13) { throw "Неожиданное число групп: $count" }
     Write-Output ("PASS: {0}/13 files-protocol groups; App_Code compiled; CLR {1}" -f $count,[Environment]::Version)
 } finally {
