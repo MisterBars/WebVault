@@ -4,6 +4,7 @@ Compile the isolated .NET Framework file-cycle helper and test only temporary da
 .DESCRIPTION
 Run in Windows PowerShell with .NET Framework 4.5 or newer. Does not use IIS,
 SQL, a live DataRoot, npm, or the browser. Failure throws and must stop the package.
+Temporary data uses a unique short .wvb-* directory under the repository root.
 The helper is not connected to any HTTP route or UI in this preparation package.
 #>
 $ErrorActionPreference = 'Stop'
@@ -23,7 +24,9 @@ namespace WebVaultBenchTests
         static void Check(bool value, string message) { if (!value) throw new Exception(message); }
         static string Data(string root, string name)
         {
-            string p = Path.Combine(root, name); Directory.CreateDirectory(p);
+            string p = Path.Combine(root, name);
+            Check(p.Length <= 100, "test_root_too_long: " + name + ", length=" + p.Length);
+            Directory.CreateDirectory(p);
             Directory.CreateDirectory(Path.Combine(p, "vaults")); Directory.CreateDirectory(Path.Combine(p, "history"));
             File.WriteAllText(Path.Combine(p, "vaults", "sentinel.md"), "personal-vault-sentinel");
             File.WriteAllText(Path.Combine(p, "history", "sentinel.md"), "personal-history-sentinel"); return p;
@@ -89,13 +92,27 @@ namespace WebVaultBenchTests
                 if (++calls == 3) { string[] dirs = Directory.GetDirectories(Path.Combine(p, "Bench")); Check(dirs.Length == 1, "fixture run missing"); unknown = Path.Combine(dirs[0], "unknown.txt"); File.WriteAllText(unknown, "keep"); }
             }); } catch (InvalidOperationException e) { rejected = e.Message == "benchmark_cleanup_unconfirmed"; }
             Check(rejected, "unknown run entry did not block cleanup"); Check(unknown != null && File.ReadAllText(unknown) == "keep", "unknown run entry deleted"); Sentinels(p); passed++;
+            p = Data(root, "root-limit");
+            string root100 = Path.Combine(p, new string('r', 100 - p.Length - 1));
+            Check(root100.Length == 100, "boundary fixture length"); Directory.CreateDirectory(root100);
+            r = BenchmarkFileCycle.Execute(root100, 1, 1, delegate { });
+            Check(r.CleanupConfirmed && Directory.GetDirectories(Path.Combine(root100, "Bench")).Length == 0, "100-character root rejected or left residue");
+            string root101 = root100 + "r"; Directory.CreateDirectory(root101); rejected = false;
+            try { BenchmarkFileCycle.Execute(root101, 1, 1, delegate { }); }
+            catch (InvalidOperationException e) { rejected = e.Message == "benchmark_root_invalid"; }
+            Check(rejected && !Directory.Exists(Path.Combine(root101, "Bench")), "101-character root accepted or caused IO"); Sentinels(p); passed++;
             return passed;
         }
     }
 }
 '@
+$testRoot = [System.IO.Path]::GetFullPath((Join-Path $repo ('.wvb-' + [Guid]::NewGuid().ToString('N'))))
+$maxCaseNameLength = 'unknown-root-entry'.Length
+if ($testRoot.Length + 1 + $maxCaseNameLength -gt 100) {
+    throw 'Repository path is too long for these fixtures. Run from a shorter checkout; production root limits are unchanged.'
+}
+if ([System.IO.Directory]::Exists($testRoot) -or [System.IO.File]::Exists($testRoot)) { throw 'Test directory collision; stop' }
 Add-Type -TypeDefinition ($source + [Environment]::NewLine + $harness) -Language CSharp -ErrorAction Stop
-$testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('WVBenchCycleTests-' + [Guid]::NewGuid().ToString('N'))
 [void][System.IO.Directory]::CreateDirectory($testRoot)
 function Remove-TestTree([string]$path) {
     $attributes = [System.IO.File]::GetAttributes($path)
@@ -107,8 +124,8 @@ function Remove-TestTree([string]$path) {
 }
 try {
     $count = [WebVaultBenchTests.Harness]::Run($testRoot)
-    if ($count -ne 11) { throw "Unexpected check count: $count" }
-    Write-Output ("PASS: {0}/11 file-cycle groups; CLR {1}" -f $count, [Environment]::Version)
+    if ($count -ne 12) { throw "Unexpected check count: $count" }
+    Write-Output ("PASS: {0}/12 file-cycle groups; CLR {1}" -f $count, [Environment]::Version)
 } finally {
     Remove-TestTree $testRoot
 }

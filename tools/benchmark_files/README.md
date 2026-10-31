@@ -11,7 +11,9 @@ powershell.exe -NoProfile -File .\tools\Test-BenchmarkFileCycle.ps1
 if ($LASTEXITCODE -ne 0) { throw 'File-cycle checks failed; stop' }
 ```
 
-Do not weaken execution policy blindly if the script is blocked. The script compiles the helper and test harness together and exercises eleven groups in a unique directory under the OS temporary directory. It never reads a configured/live DataRoot and verifies sentinel files in mock vaults/history. Expected output: PASS: 11/11 file-cycle groups. A compiler or filesystem error is a failed check, not a reason to continue publication.
+Do not weaken execution policy blindly if the script is blocked. The script compiles the helper and test harness together and exercises twelve groups in a unique short .wvb-* directory under the repository root, removed in finally. It never reads a configured/live DataRoot and verifies sentinel files in mock vaults/history. Expected output: PASS: 12/12 file-cycle groups. A compiler or filesystem error is a failed check, not a reason to continue publication.
+
+The test preflights the longest ordinary case path against the helper's unchanged 100-character root limit. An additional boundary group requires a 100-character root to work and a 101-character root to fail without creating Bench. Long OS temporary paths are no longer used for the fixtures. If the checkout itself is too long, the script stops before creating test data and requests a shorter checkout. If a process is killed, its uniquely named test directory may remain; do not include it in a commit.
 
 The assistant has not executed this PowerShell/.NET test. Node tests and Python inspection cannot establish its result. Windows junction/reparse races, process termination, real IIS sessions and target deployment remain untested.
 
