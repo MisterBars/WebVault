@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const text=readFileSync(new URL('./benchmark_screen_registry.js',import.meta.url),'utf8');
+const executable=text.replace(/^import .*;$/gm,'').replace('export function createScreenWorkloadRegistry','function createScreenWorkloadRegistry');
+function fixture({shared=true,aside=true,tree=true,denied=false,fail=false,pending=false}={}){
+ const calls=[],events=[],own=new AbortController();let captured,disposed=0,release;
+ const doc={querySelector:()=>aside?left:null,createElement:()=>element()};
+ function element(){return {ownerDocument:doc,style:{},getBoundingClientRect:()=>({width:220,height:480}),children:[],isConnected:true,parentNode:null,appendChild(x){x.parentNode=this;this.children.push(x);return x;},insertBefore(x){return this.appendChild(x);},removeAttribute(){},remove(){if(this.parentNode)this.parentNode.children=this.parentNode.children.filter(x=>x!==this);this.parentNode=null;},set textContent(v){this.children=[];}};}
+ const left=element(),parent=element(),graph=element();parent.appendChild(graph);
+ const measured={catalog:[{id:'tree.dom.render',version:1}],configure:x=>x,async execute(c,o){calls.push('tree');assert.equal(o.treeHost,captured.treeHost);return {status:'ok',cleanup:'ok'};}};
+ const components={catalog:[{id:'graph.model.build',version:1}],execute(){}};
+ const box={Uint8Array,createTreeWorkloadRunner:()=>measured,makeFixtures:()=>({notes:[{path:'Bench/Test.md'}]}),renderBenchmarkTree:({host,createButton})=>{calls.push('preview');assert.equal(createButton,renderer.createButton);host.children.push({synthetic:true});return {dispose(){disposed++;host.children=[];}};},createBenchmarkWorkloadRegistry:({tree:runner,components:c})=>({configure:x=>x,async execute(config,o){captured=o;assert.equal(c,components);await o.authorize(o.signal);if(tree)await runner.execute(config,o);calls.push('components');if(pending)await new Promise(r=>release=r);o.onProgress?.({stage:'step-end',runner:'components',completed:2,total:2});return {status:fail?'incomplete':'ok',cleanup:'ok',results:[],config};}})};
+ const renderer={apiVersion:1,createButton(){}};
+ const root={WebVaultFileTreeView:shared?renderer:undefined,crypto:{getRandomValues:b=>b.fill(7)}};
+ vm.runInNewContext(executable+';globalThis.factory=createScreenWorkloadRegistry;',box);
+ const registry=box.factory({root,components}),input={selected:tree?['tree.dom.render','graph.model.build']:['graph.model.build'],dataset:{}},options={host:graph,signal:own.signal,authorize:async()=>{if(denied)return false;},onProgress:e=>events.push(e)};
+ return {registry,components,own,calls,events,left,parent,graph,input,options,get captured(){return captured;},get disposed(){return disposed;},release:()=>release?.()};
+}
+test('missing shared renderer retains the exact legacy component runner',()=>{const f=fixture({shared:false});assert.equal(f.registry,f.components);});
+test('workspace uses a separate synthetic host, combined events and batch identity',async()=>{const f=fixture(),r=await f.registry.execute(f.input,f.options);assert.equal(r.status,'ok');assert.match(r.batchId,/^[a-f0-9]{32}$/);assert.equal(f.left.children.length,1);assert.notEqual(f.captured.treeHost,f.graph);assert.deepEqual(f.calls,['tree','preview','components']);assert.equal(f.events[0].completed,2);f.registry.clear();assert.equal(f.left.children.length,0);assert.equal(f.disposed,1);});
+test('legacy placement inserts its synthetic host beside graph preview',async()=>{const f=fixture({aside:false});await f.registry.execute(f.input,f.options);assert.equal(f.parent.children.length,2);f.registry.clear();assert.deepEqual(f.parent.children,[f.graph]);});
+test('component-only selection still has a genuine synthetic tree preview',async()=>{const f=fixture({tree:false});await f.registry.execute(f.input,f.options);assert.deepEqual(f.calls,['preview','components']);f.registry.clear();});
+test('permission denial never mounts a synthetic host or executes children',async()=>{const f=fixture({denied:true});await assert.rejects(f.registry.execute(f.input,f.options),/benchmark_permission_required/);assert.equal(f.left.children.length,0);assert.deepEqual(f.calls,[]);});
+test('incomplete combined run removes the remaining preview',async()=>{const f=fixture({fail:true});const r=await f.registry.execute(f.input,f.options);assert.equal(r.status,'incomplete');assert.equal(f.left.children.length,0);assert.equal(f.disposed,1);});
+test('abort removes the preview while a child is pending',async()=>{const f=fixture({pending:true}),task=f.registry.execute(f.input,f.options);await new Promise(r=>setTimeout(r,0));assert.equal(f.left.children.length,1);f.own.abort();assert.equal(f.left.children.length,0);f.release();await task;});
+test('clear prevents a late pending completion from restoring the tree',async()=>{const f=fixture({pending:true}),task=f.registry.execute(f.input,f.options);await new Promise(r=>setTimeout(r,0));f.registry.clear();f.release();await task;assert.equal(f.left.children.length,0);});

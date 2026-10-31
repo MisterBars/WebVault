@@ -13,10 +13,10 @@ function setup({onProgress,execute,httpStatus='ok'}={}){
  }
  const owner=node('div'),notice=onProgress===false?undefined:onProgress||((e)=>events.push(e));
  const context={signal:own.signal,authorize:async()=>{},onProgress:notice,httpConfig:{repetitions:1,warmup:0},executeHTTP:async()=>{calls.push('http');return {status:httpStatus,cleanup:'ok',samples:[],statistics:null};}};
- const registry={catalog:[{id:'graph.model.build',label:'Model'}],async execute(config,c){calls.push({config,context:c});if(execute)return execute(config,c);c.onProgress?.({stage:'step-end',id:'graph.model.build',completed:1,total:1});return {schemaVersion:1,batchId:'test',cleanup:'ok',results:[{id:'graph.model.build',status:'ok'}],config,conditions:{},unavailable:[]};}};
+ const registry={catalog:[{id:'graph.model.build',label:'Model'}],async execute(config,c){calls.push({config,context:c});if(execute)return execute(config,c);c.onProgress?.({stage:'step-end',id:'graph.model.build',completed:1,total:1});return {schemaVersion:1,batchId:'test',status:'ok',cleanup:'ok',results:[{id:'graph.model.build',status:'ok'}],config,conditions:{},unavailable:[]};}};
  const api={owner,node,button:(text,parent,fn)=>{const b=node('button',text,parent);b.onclick=fn;return b;},runButton:(text,fn)=>{run=fn;return node('button',text);},setHTTPVisible(){},hideHTTPStart(){},message:message=>assert.fail(message),run:work=>work(context),capture:()=>()=>true};
  const root={WebVaultBenchmarkWorkloads:registry,WebVaultBenchmarkUI:{attach:factory=>{extension=factory(api);}},location:{href:'https://example.test/'}};
- vm.runInNewContext(executable+';installWorkloadControls(window);',{datasetConfig:x=>x,LOAD_FIELDS:[],describeLoad:()=>({text:'',profile:{}}),importLoadReport(){},URL,window:root});
+ vm.runInNewContext(executable+';installWorkloadControls(window);',{createScreenWorkloadRegistry:({components})=>components,datasetConfig:x=>x,LOAD_FIELDS:[],describeLoad:()=>({text:'',profile:{}}),importLoadReport(){},URL,window:root});
  return {nodes,events,calls,context,run:()=>run(),extension,host:()=>nodes.find(n=>n.className==='wv-benchmark-preview'),http:()=>nodes.find(n=>n.tag==='input'&&n.type==='checkbox')};
 }
 
@@ -40,4 +40,9 @@ test('component exception still hides its rendering host',async()=>{
 });
 test('controls explicitly identify automatic graph mode and unavailable interactions',()=>{
  const f=setup();assert.ok(f.nodes.some(n=>n.tag==='p'&&n.textContent.includes('Режим графа: автоматический.')&&n.textContent.includes('Интерактивный режим')&&n.textContent.includes('пока недоступен')));
+});
+
+test('aggregate failure cannot be overwritten by individually successful rows',async()=>{
+ const f=setup({execute:async()=>({status:'incomplete',cleanup:'ok',results:[{id:'graph.model.build',status:'ok'}],config:{}})});
+ assert.equal((await f.run()).status,'incomplete');
 });

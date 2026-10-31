@@ -1,3 +1,4 @@
+import {createScreenWorkloadRegistry} from './benchmark_screen_registry.js';
 import {datasetConfig} from './benchmark_fixtures.js';
 import {LOAD_FIELDS,describeLoad,importLoadReport} from './benchmark_profiles.js';
 export function installWorkloadControls(root=window){
@@ -7,7 +8,8 @@ export function installWorkloadControls(root=window){
    const {node:n,button,owner}=api,section=n('section',null,owner);section.id='benchmarkWorkloads';
    n('h3','Компоненты приложения: синтетический корпус',section);
    n('p','Эти действия используют настоящий parser и общий renderer графа, но данные создаются в памяти вкладки. Файлы на сервере, рабочая заметка и полноценный HTTP-путь индекса не используются.',section);
-   const controls=n('fieldset',null,section),choices=n('div',null,controls),selected=new Map(),registry=root.WebVaultBenchmarkWorkloads;
+   const controls=n('fieldset',null,section),choices=n('div',null,controls),selected=new Map(),registry=createScreenWorkloadRegistry({root,components:root.WebVaultBenchmarkWorkloads});
+   if(!registry.catalog.some(x=>x.id==='tree.dom.render'))n('p','Тестовое дерево недоступно: общий renderer не загружен. Сохранён прежний компонентный режим.',section);
    const all=[{id:'http.synthetic.read',label:'Защищённый синтетический HTTP-ответ'},...registry.catalog];
    for(const item of all){const label=n('label',null,choices);label.className='wv-benchmark-choice';const input=n('input',null,label);input.type='checkbox';input.checked=!['http.synthetic.read','graph.svg.first-frame'].includes(item.id);label.appendChild(owner.ownerDocument.createTextNode(item.label));selected.set(item.id,input);}
    for(const labelText of ['Файловое дерево через сервер — ещё не поддерживается','Открытие/сохранение тестовой заметки — ещё не поддерживается']){const label=n('label',null,choices),input=n('input',null,label);label.className='wv-benchmark-choice';input.type='checkbox';input.disabled=true;label.appendChild(owner.ownerDocument.createTextNode(labelText));}
@@ -30,7 +32,7 @@ export function installWorkloadControls(root=window){
      if(chosen.includes('http.synthetic.read')){const r=await context.executeHTTP();results.push({id:'http.synthetic.read',version:1,status:r.status,statistics:r.statistics,samples:r.samples,config:r.config,cleanup:r.cleanup});if(r.status!=='ok')stopped=true;}
      if(local.length){
       if(stopped)for(const id of local)results.push({id,version:1,status:'skipped',reason:'previous_scenario_failed',statistics:null,samples:[]});
-      else{host.hidden=false;try{const r=await registry.execute({selected:local,dataset:data,...parameters},{host,signal:context.signal,authorize:context.authorize,onProgress:context.onProgress});results.push(...r.results);return {schemaVersion:1,batchId:r.batchId,scope:'browser-selected-synthetic-workloads',status:results.every(x=>x.status==='ok')?'ok':context.signal.aborted?'cancelled':'incomplete',cleanup:r.cleanup,results,config:{http:chosen.includes('http.synthetic.read')?context.httpConfig:null,components:r.config},fixtureVersion:r.fixtureVersion,fixtureKey:r.fixtureKey,fixtureBytes:r.fixtureBytes,conditions:r.conditions,unavailable:r.unavailable};}finally{host.hidden=true;}}
+      else{host.hidden=false;try{const r=await registry.execute({selected:local,dataset:data,...parameters},{host,signal:context.signal,authorize:context.authorize,onProgress:context.onProgress});results.push(...r.results);return {schemaVersion:1,batchId:r.batchId,scope:'browser-selected-synthetic-workloads',status:r.status==='ok'&&r.cleanup==='ok'&&results.every(x=>x.status==='ok')?'ok':context.signal.aborted?'cancelled':'incomplete',cleanup:r.cleanup,results,config:{http:chosen.includes('http.synthetic.read')?context.httpConfig:null,components:r.config},fixtureVersion:r.fixtureVersion,fixtureKey:r.fixtureKey,fixtureBytes:r.fixtureBytes,conditions:r.conditions,unavailable:r.unavailable};}finally{host.hidden=true;}}
      }
      return {schemaVersion:1,scope:'browser-selected-synthetic-workloads',status:results.every(x=>x.status==='ok')?'ok':context.signal.aborted?'cancelled':'incomplete',cleanup:results.some(x=>x.cleanup==='unconfirmed')?'unconfirmed':'ok',results};
     });
@@ -48,7 +50,7 @@ export function installWorkloadControls(root=window){
    const fileLabel=n('label','Импорт JSON-отчёта внешнего генератора (до2 MiB)',loadControls),file=n('input',null,fileLabel);file.type='file';file.accept='.json,application/json';
    let importEpoch=0;file.onchange=async()=>{const token=++importEpoch,current=api.capture();if(!file.files||!file.files[0])return;try{const item=file.files[0];if(item.size>2097152)throw Error('report_too_large');const text=await item.text();if(token!==importEpoch||!current())return;const r=importLoadReport(text,new URL('.',root.location.href).href);await api.presentImported(r,()=>token===importEpoch&&current());}catch(e){if(token===importEpoch&&current())api.message(e.message);}};
    updatePlan();refreshLoad();
-   return {sync(state){enabled=state.canRun;running=state.running;owner.hidden=!enabled;controls.disabled=loadControls.disabled=!enabled||running;updatePlan();},clear(){importEpoch++;host.hidden=true;host.textContent='';file.value='';},element:section};
+   return {sync(state){enabled=state.canRun;running=state.running;owner.hidden=!enabled;controls.disabled=loadControls.disabled=!enabled||running;updatePlan();},clear(){importEpoch++;if(typeof registry.clear==='function')registry.clear();host.hidden=true;host.textContent='';file.value='';},element:section};
   });
  };
  root.WebVaultBenchmarkWorkloadInstaller=attach;if(root.WebVaultBenchmarkUI)attach(root.WebVaultBenchmarkUI);
