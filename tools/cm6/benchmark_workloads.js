@@ -1,3 +1,5 @@
+import {loadIndexFromSource} from './note_index.js';
+import {loadBenchmarkIndex} from './benchmark_index_source.js';
 import {makeFixtures,verifyGraph} from './benchmark_fixtures.js';
 import {mountGraphScene} from './graph_scene.js';
 export const WORKLOADS=[
@@ -13,7 +15,7 @@ export function workloadConfig(input={}){
  for(const [k,min,max] of [['repetitions',1,10],['warmup',0,3],['timeoutMs',1000,30000]])if(!Number.isInteger(c[k])||c[k]<min||c[k]>max)throw Error('invalid_workload_config');return c;
 }
 function stats(a){if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y),median=x=>x.length%2?x[(x.length-1)/2]:(x[x.length/2-1]+x[x.length/2])/2,m=median(s);return {unit:'ms',count:s.length,median:m,min:s[0],max:s.at(-1),mad:median(s.map(x=>Math.abs(x-m)).sort((x,y)=>x-y))};}
-export function createWorkloadRunner({extractReferences,makeGraph,forces,clock=()=>performance.now(),raf=callback=>requestAnimationFrame(callback),cancelRaf=id=>cancelAnimationFrame(id),pause=ms=>new Promise(r=>setTimeout(r,ms)),makeBatchId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join('')}){
+export function createWorkloadRunner({extractReferences,makeGraph,forces,loadIndex=loadIndexFromSource,clock=()=>performance.now(),raf=callback=>requestAnimationFrame(callback),cancelRaf=id=>cancelAnimationFrame(id),pause=ms=>new Promise(r=>setTimeout(r,ms)),makeBatchId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(16).padStart(2,'0')).join('')}){
  async function rendered(graph,fixture,host,signal,timeoutMs,settled){
   if(!host||!host.isConnected)throw Error('graph_host_unavailable');
   const doc=host.ownerDocument,svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 960 560');svg.setAttribute('class','wv-graph-svg');svg.setAttribute('aria-label','Синтетический тестовый граф');svg.style.width='100%';svg.style.height='320px';host.appendChild(svg);const geometry=svg.getBoundingClientRect();if(!(geometry.width>0&&geometry.height>0)){svg.remove();throw Error('graph_host_not_visible');}
@@ -40,7 +42,7 @@ export function createWorkloadRunner({extractReferences,makeGraph,forces,clock=(
   const c=workloadConfig(input),fixture=makeFixtures(c.dataset),start=clock(),results=[],batchId=makeBatchId();let stopped=null,completed=0;
   const total=c.selected.length*(c.warmup+c.repetitions);
   function emit(stage,id,index,phase,status){if(typeof onProgress!=='function')return;try{onProgress({stage,id,index,phase,status,completed,total});}catch(ignore){}}
-  const report={schemaVersion:1,batchId,scope:'browser-synthetic-components',config:{...c,dataset:fixture.config},fixtureVersion:fixture.version,fixtureKey:fixture.key,fixtureBytes:fixture.bytes,conditions:{pacingMs:50,parseYieldEvery:8,includesValidation:true,renderModelPreparationExcluded:true},results,unavailable:['server note reads','server writes','full index HTTP path','physical paint','CPU','memory','concurrent users']};
+  const report={schemaVersion:1,batchId,scope:'browser-synthetic-components',config:{...c,dataset:fixture.config},fixtureVersion:fixture.version,fixtureKey:fixture.key,fixtureBytes:fixture.bytes,conditions:{graphIndexSource:'memory',sharedIndexLoaderVersion:1,indexPreparationExcluded:true,pacingMs:50,parseYieldEvery:8,includesValidation:true,renderModelPreparationExcluded:true},results,unavailable:['server note reads','server writes','full index HTTP path','physical paint','CPU','memory','concurrent users']};
   emit('starting',null,null,null,null);
   for(const id of c.selected){
    const row={id,version:1,status:'pending',samples:[],statistics:null};results.push(row);
@@ -49,7 +51,8 @@ export function createWorkloadRunner({extractReferences,makeGraph,forces,clock=(
     for(let i=0;i<c.warmup+c.repetitions;i++){
      if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');await authorize();if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');
      const phase=i<c.warmup?'warmup':'measurement';emit('step-start',id,i,phase,null);if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');
-     const prepared=id.startsWith('graph.svg.')?makeGraph(fixture.notes):null;if(prepared)verifyGraph(prepared,fixture);
+     let indexNotes=fixture.notes;if(id.startsWith('graph.')){const began=clock(),check=()=>{if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');};const indexed=await loadBenchmarkIndex(fixture,{loadIndex,signal,check,pause});check();indexNotes=indexed.notes;(row.indexPreparation??=[]).push({phase,elapsedMs:clock()-began,...indexed.statistics});}
+     const prepared=id.startsWith('graph.svg.')?makeGraph(indexNotes):null;if(prepared)verifyGraph(prepared,fixture);
      const t=clock();
      try{
       if(id==='markdown.references.batch'){
@@ -57,7 +60,7 @@ export function createWorkloadRunner({extractReferences,makeGraph,forces,clock=(
         if(signal.aborted)throw Error('cancelled');const note=fixture.notes[j],refs=extractReferences(note.text);if(JSON.stringify(refs)!==JSON.stringify(note.refs))throw Error('incorrect_references');
         if((j+1)%8===0)await pause(0);if(clock()-t>c.timeoutMs)throw Error('request_timeout');
        }
-      }else if(id==='graph.model.build'){verifyGraph(makeGraph(fixture.notes),fixture);}
+      }else if(id==='graph.model.build'){verifyGraph(makeGraph(indexNotes),fixture);}
       else {const geometry=await rendered(prepared,fixture,host,signal,Math.min(c.timeoutMs,Math.max(1,120000-(clock()-start))),id==='graph.svg.settled');if(row.renderGeometry&&(row.renderGeometry.width!==geometry.width||row.renderGeometry.height!==geometry.height))throw Error('render_geometry_changed');row.renderGeometry=geometry;}
       const elapsedMs=clock()-t;if(signal.aborted)throw Error('cancelled');if(elapsedMs>c.timeoutMs||clock()-start>=120000)throw Error('request_timeout');
       await authorize();if(signal.aborted)throw Error('cancelled');if(clock()-start>=120000)throw Error('run_timeout');row.samples.push({phase,status:'ok',elapsedMs});completed++;emit('step-end',id,i,phase,'ok');
