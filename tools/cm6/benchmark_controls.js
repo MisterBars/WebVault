@@ -1,6 +1,9 @@
 import {createScreenWorkloadRegistry} from './benchmark_screen_registry.js';
 import {datasetConfig} from './benchmark_fixtures.js';
 import {LOAD_FIELDS,describeLoad,importLoadReport} from './benchmark_profiles.js';
+import './benchmark_files_core.js';
+import {createBenchmarkFilesTransport} from './benchmark_files_transport.js';
+import {installFileCycleControls} from './benchmark_files_ui.js';
 export function installWorkloadControls(root=window){
  const attach=bridge=>{
   if(!bridge||typeof bridge.attach!=='function')return;
@@ -46,6 +49,8 @@ export function installWorkloadControls(root=window){
    });manual.hidden=!supportsInteractive;
    for(const input of selected.values())input.addEventListener('change',updatePlan);
    api.hideHTTPStart();
+   let fileCycle=null;
+   function syncFileCycle(state){if(!fileCycle&&root.WebVaultWorkspace)fileCycle=installFileCycleControls(api,root,{core:root.WebVaultBenchmarkFilesCore||globalThis.WebVaultBenchmarkFilesCore,createTransport:createBenchmarkFilesTransport});if(fileCycle)fileCycle.sync(state);}
    const load=n('details',null,owner);n('summary','Независимые пользователи: внешний генератор',load);n('p','Этот профиль сейчас выполняет только http.synthetic.read под отдельными тестовыми учётками. Он не создаёт браузеры и не рисует несколько графов. Генератор запускается на тестовом ПК, не в IIS. Пароли в сайт не загружаются.',load);
    const loadControls=n('fieldset',null,load),loadInputs={},loadGrid=n('div',null,loadControls);loadGrid.className='wv-benchmark-options';
    const labels={users:'Одновременных тестовых пользователей',repetitions:'Измеряемых HTTP-запросов на пользователя',warmup:'Предварительных HTTP-запросов на пользователя',sizeKiB:'Текст HTTP-ответа, KiB',timeoutMs:'Таймаут HTTP-запроса, ms',rampMs:'Выход всех пользователей на нагрузку, ms',pacingMs:'Пауза между шагами пользователя, ms'};
@@ -57,7 +62,7 @@ export function installWorkloadControls(root=window){
    const fileLabel=n('label','Импорт JSON-отчёта внешнего генератора (до2 MiB)',loadControls),file=n('input',null,fileLabel);file.type='file';file.accept='.json,application/json';
    let importEpoch=0;file.onchange=async()=>{const token=++importEpoch,current=api.capture();if(!file.files||!file.files[0])return;try{const item=file.files[0];if(item.size>2097152)throw Error('report_too_large');const text=await item.text();if(token!==importEpoch||!current())return;const r=importLoadReport(text,new URL('.',root.location.href).href);await api.presentImported(r,()=>token===importEpoch&&current());}catch(e){if(token===importEpoch&&current())api.message(e.message);}};
    updatePlan();refreshLoad();
-   return {sync(state){enabled=state.canRun;running=state.running;owner.hidden=!enabled;controls.disabled=loadControls.disabled=!enabled||running;updatePlan();},clear(){importEpoch++;if(typeof registry.clear==='function')registry.clear();host.hidden=true;host.textContent='';file.value='';},element:section};
+   return {sync(state){syncFileCycle(state);enabled=state.canRun;running=state.running;owner.hidden=!enabled;controls.disabled=loadControls.disabled=!enabled||running;updatePlan();},clear(){if(fileCycle)fileCycle.clear();importEpoch++;if(typeof registry.clear==='function')registry.clear();host.hidden=true;host.textContent='';file.value='';},element:section};
   });
  };
  root.WebVaultBenchmarkWorkloadInstaller=attach;if(root.WebVaultBenchmarkUI)attach(root.WebVaultBenchmarkUI);
