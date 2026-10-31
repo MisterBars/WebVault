@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {webcrypto} from 'node:crypto';
+import './benchmark_files_core.js';
+const core=globalThis.WebVaultBenchmarkFilesCore,requestId='a'.repeat(32),runId='b'.repeat(32);
+const cfg={actors:2,sizeKiB:1,repetitions:2,warmup:1,timeoutMs:1000};
+function fake(change=()=>{}){let next=0;const calls=[];const request=async(p,ms,signal)=>{
+ calls.push(p.action);const b={ok:true,protocolVersion:1,scenario:'server.files.cycle',scenarioVersion:1,fixtureVersion:1,requestId,runId};
+ if(p.action==='step'){Object.assign(b,{index:p.index,actors:2,bytes:1024,verifiedReads:6,payloadId:await core.boundId(runId,p.index,webcrypto),serverCycleMs:2,cleanup:'ok',remainingObjects:0});next++;}
+ else Object.assign(b,{found:true,state:p.action==='cancel'?'stopped':'ready',next,count:3,actors:2,bytes:1024,expired:false,expiresUtc:'2030-01-01T00:00:00Z',cleanup:p.action==='cancel'?'ok':'unconfirmed'});
+ await change(p,b,signal);return b;};return {request,calls};}
+function run(f,extra={}){let t=0;return core.execute(cfg,f.request,{requestId,crypto:webcrypto,sameContext:()=>true,clock:()=>t++,...extra});}
+const vectors=[{"run": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "index": 0, "expected": "b1983bd07b5495f28204ec973618f3e9"}, {"run": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "index": 1, "expected": "c884efdea4408443372083a16f209836"}, {"run": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "index": 12, "expected": "d0e7145e49b83c8873135608be372e49"}];
+for(const v of vectors)test('SHA256 and .NET GUID byte ordering: '+v.index,async()=>{assert.equal(await core.boundId(v.run,v.index,webcrypto),v.expected);});
+test('complete run; warmup excluded from both statistics',async()=>{const f=fake(),r=await run(f);assert.equal(r.status,'ok');assert.equal(r.cleanup,'ok');assert.equal(r.statistics.http.count,2);assert.equal(r.statistics.server.median,2);assert.deepEqual(f.calls,['start','step','step','step','cancel']);});
+for(const field of ['runId','requestId','protocolVersion','scenarioVersion','fixtureVersion','index','actors','bytes','verifiedReads','payloadId','serverCycleMs','cleanup','remainingObjects'])test('reject incorrect step '+field,async()=>{const f=fake((p,b)=>{if(p.action==='step')b[field]=null;});const r=await run(f);assert.equal(r.status,'error');assert.equal(r.samples.length,0);});
+for(const action of ['start','step'])test('lost '+action+' response; no mutation retry',async()=>{const f=fake(p=>{if(p.action===action)throw Error('network_failure');});const r=await run(f);assert.equal(r.status,'error');assert.equal(r.samples.length,0);assert.equal(r.cleanup,'ok');assert.deepEqual(f.calls,action==='start'?['start','status','cancel']:['start','step','status','cancel']);});
+test('cleanup success requires explicit confirmation',async()=>{const f=fake((p,b)=>{if(p.action==='cancel')b.cleanup='unconfirmed';});assert.equal((await run(f)).status,'incomplete');});
+test('cleanup error is incomplete',async()=>{const f=fake(p=>{if(p.action==='cancel')throw Error('network_failure');});assert.equal((await run(f)).status,'incomplete');});
+test('changed session prevents all maintenance requests',async()=>{let live=true;const f=fake(p=>{if(p.action==='step')live=false;});const r=await run(f,{sameContext:()=>live});assert.equal(r.reason,'session_changed');assert.equal(r.cleanup,'unconfirmed');assert.equal(r.samples.length,0);assert.deepEqual(f.calls,['start','step']);});
+test('pre-aborted signal: no requests',async()=>{const f=fake(),a=new AbortController();a.abort();const r=await run(f,{signal:a.signal});assert.equal(r.status,'cancelled');assert.deepEqual(f.calls,[]);});
+test('abort during hung step aborts signal and still cleans same context',async()=>{const a=new AbortController();let aborted=false;const f=fake((p,b,s)=>{if(p.action==='step')return new Promise(()=>{s.addEventListener('abort',()=>{aborted=true;});setTimeout(()=>a.abort(),10);});});const r=await run(f,{signal:a.signal});assert.equal(r.status,'cancelled');assert.equal(aborted,true);assert.equal(r.cleanup,'ok');assert.deepEqual(f.calls,['start','step','status','cancel']);});
+test('real timeout bounds hung transport without relying on its rejection',async()=>{let aborted=false;const f=fake((p,b,s)=>{if(p.action==='step')return new Promise(()=>{s.addEventListener('abort',()=>{aborted=true;});});});const r=await run(f);assert.equal(r.status,'timeout');assert.equal(aborted,true);assert.equal(r.samples.length,0);assert.equal(r.cleanup,'ok');});
+test('late successful step is not a sample',async()=>{let t=0;const f=fake(p=>{if(p.action==='step')t+=1001;});const r=await run(f,{clock:()=>t});assert.equal(r.status,'timeout');assert.equal(r.samples.length,0);});
+test('permission revoked: no retry',async()=>{const f=fake(p=>{if(p.action==='step')throw Error('benchmark_permission_changed');});const r=await run(f);assert.equal(r.reason,'benchmark_permission_changed');assert.equal(r.cleanup,'ok');assert.equal(r.samples.length,0);});
+test('absent status does not prove cleanup after lost start',async()=>{const f=fake((p,b)=>{if(p.action==='start')throw Error('network_failure');if(p.action==='status')Object.assign(b,{found:false,state:'absent',runId:null,next:0,count:0,actors:0,bytes:0,cleanup:'unconfirmed'});if(p.action==='cancel')throw Error('benchmark_run_not_found');});assert.equal((await run(f)).cleanup,'unconfirmed');});
+test('invalid total rejected before requests',async()=>{const f=fake();await assert.rejects(core.execute({...cfg,repetitions:13},f.request,{requestId,sameContext:()=>true,crypto:webcrypto}));assert.deepEqual(f.calls,[]);});
+test('mandatory original-context guard',async()=>{await assert.rejects(core.execute(cfg,async()=>{}, {requestId,crypto:webcrypto}));});
