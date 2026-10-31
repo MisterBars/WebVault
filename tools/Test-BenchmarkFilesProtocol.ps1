@@ -23,7 +23,7 @@ $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('WVBenchProtocol-' + [Guid]
 $serverAssembly = Join-Path $temp 'WebVault.ProtocolServer.dll'
 $testAssemblyPath = Join-Path $temp 'WebVault.ProtocolChecks.dll'
 try {
-    $serverArgs = @('/nologo','/target:library','/out:' + $serverAssembly) + $references + $sources
+    $serverArgs = @('/nologo', '/target:library', ('/out:' + $serverAssembly)) + $references + $sources
     & $csc @serverArgs
     if ($LASTEXITCODE -ne 0) { throw "csc.exe не собрал App_Code; код $LASTEXITCODE. Проверки не запускались" }
     if (-not (Test-Path -LiteralPath $serverAssembly -PathType Leaf)) { throw 'csc.exe не создал сборку App_Code; остановка' }
@@ -82,7 +82,12 @@ public static class WebVaultFilesProtocolChecks
 '@
     $harnessFile = Join-Path $temp 'WebVaultFilesProtocolChecks.cs'
     [System.IO.File]::WriteAllText($harnessFile,$harness,[System.Text.Encoding]::UTF8)
-    $testArgs = @('/nologo','/target:library','/out:' + $testAssemblyPath,'/reference:' + $serverAssembly) + $references + @($harnessFile)
+    $testArgs = @(
+    '/nologo'
+    '/target:library'
+    ('/out:' + $testAssemblyPath)
+    ('/reference:' + $serverAssembly)
+) + $references + @($harnessFile)
     & $csc @testArgs
     if ($LASTEXITCODE -ne 0) { throw "csc.exe не собрал тестовую обвязку; код $LASTEXITCODE" }
     if (-not (Test-Path -LiteralPath $testAssemblyPath -PathType Leaf)) { throw 'csc.exe не создал тестовую сборку; остановка' }
