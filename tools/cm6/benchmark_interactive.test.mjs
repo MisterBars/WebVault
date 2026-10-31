@@ -7,7 +7,8 @@ const source=readFileSync(new URL('./benchmark_interactive.js',import.meta.url),
 const baseSource=readFileSync(new URL('./benchmark_workloads.js',import.meta.url),'utf8');
 const configSource=baseSource.slice(baseSource.indexOf('export const WORKLOADS='),baseSource.indexOf('function stats(')).replace(/^export /gm,'');
 const workloadConfig=new Function(configSource+';return workloadConfig;')();
-const getRunner=new Function('createAutomaticRunner','workloadConfig','makeFixtures','verifyGraph','loadIndexFromSource','loadBenchmarkIndex','mountGraphScene','createGraphInteraction',source.replace(/^import .*;\n/gm,'').replace(/^export /gm,'')+';return createWorkloadRunner;');
+function compileRunner(text){return new Function('createAutomaticRunner','workloadConfig','makeFixtures','verifyGraph','loadIndexFromSource','loadBenchmarkIndex','mountGraphScene','createGraphInteraction',text.replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'')+';return createWorkloadRunner;');}
+const getRunner=compileRunner(source);
 class Element{
  constructor(doc,tag){this.ownerDocument=doc;this.tag=tag;this.namespaceURI='http://www.w3.org/2000/svg';this.children=[];this.dataset={};this.style={};this.listeners={};this.attributes={};this.isConnected=true;}
  appendChild(n){n.parentNode=this;this.children.push(n);return n;}remove(){this.isConnected=false;if(this.parentNode)this.parentNode.children=this.parentNode.children.filter(n=>n!==this);}
@@ -55,3 +56,5 @@ test('observer exceptions cannot corrupt success or cleanup',async()=>{const f=f
 test('pre-aborted input does no indexing or DOM work',async()=>{const f=fixture();f.abort.abort();const r=await f.runner.executeInteractive(f.input,f.options);assert.equal(r.status,'cancelled');assert.equal(f.counts().requests,0);assert.equal(f.host.children.length,0);});
 test('invisible SVG does not become a successful interactive run',async()=>{const f=fixture();f.doc.height=0;const r=await f.runner.executeInteractive(f.input,f.options);assert.equal(r.results[0].reason,'graph_host_not_visible');assert.equal(r.results[0].statistics,null);assert.equal(f.host.children.length,0);});
 test('wrong SVG node count cannot pass geometry validation',async()=>{const f=fixture(),create=f.doc.createElementNS;f.doc.createElementNS=(ns,tag)=>create(ns,tag==='circle'?'wrong-circle':tag);const p=f.runner.executeInteractive(f.input,f.options);await f.ready();f.frame();const r=await p;assert.equal(r.results[0].reason,'incorrect_rendered_graph');assert.equal(r.results[0].statistics,null);assert.equal(f.host.children.length,0);});
+
+for(const ending of ['LF','CRLF'])test('runner source loader accepts '+ending,()=>{const lf=source.replace(/\r\n/g,'\n'),text=ending==='CRLF'?lf.replace(/\n/g,'\r\n'):lf;assert.equal(typeof compileRunner(text),'function');});
