@@ -26,6 +26,22 @@ function tooltips(dialog,panel){
   button.addEventListener('mouseenter',show);button.addEventListener('focus',show);button.addEventListener('mouseleave',()=>{if(!pinned&&doc.activeElement!==button)entry.hide();});button.addEventListener('blur',()=>entry.hide());button.addEventListener('click',e=>{e.preventDefault();if(pinned)entry.hide();else{show();pinned=true;}});
  }
 }
+function regroupPanel(panel){
+ const doc=panel.ownerDocument,components=panel.querySelector('#benchmarkWorkloads');if(!components)return;
+ const automatic=components.parentNode;if(!automatic.classList.contains('wv-bench-group'))return;const owner=automatic.parentNode;
+ function title(group,text){const s=Array.from(group.children).find(n=>n.tagName==='SUMMARY');if(s&&s.textContent!==text)s.textContent=text;}
+ function group(id,text){let g=panel.querySelector('#'+id);if(!g){g=doc.createElement('details');g.id=id;g.className='wv-bench-group';const s=doc.createElement('summary');s.textContent=text;g.appendChild(s);owner.appendChild(g);}return g;}
+ title(automatic,'Автоматические проверки');
+ const http=panel.querySelector('form');if(http&&http.parentNode.classList.contains('wv-bench-group')){const g=http.parentNode;title(g,'Параметры HTTP');if(g.parentNode!==components)components.appendChild(g);}
+ const manual=Array.from(panel.querySelectorAll('button')).find(b=>b.textContent==='Ручная проверка графа');let manualGroup=null;
+ if(manual){manualGroup=group('benchmarkManualOptions','Ручная проверка графа');if(manual.parentNode!==manualGroup){const p=doc.createElement('p');p.textContent='Использует параметры корпуса, повторов, прогрева и таймаута из автоматических проверок.';manualGroup.appendChild(p);manualGroup.appendChild(manual);}if(manualGroup.hidden!==manual.hidden)manualGroup.hidden=manual.hidden;}
+ const advanced=group('benchmarkAdvancedOptions','Дополнительно'),file=panel.querySelector('input[type=file]');
+ if(file){const external=file.closest('details');if(external&&external!==advanced){title(external,'Внешняя нагрузка и импорт отчёта');if(external.parentNode!==advanced)advanced.appendChild(external);}}
+ const help=Array.from(panel.children).find(n=>n.classList.contains('wv-bench-explanation'));if(help){title(help,'Методика измерений и показатели');advanced.appendChild(help);}
+ const hasExtra=Array.from(advanced.children).some(n=>n.tagName!=='SUMMARY'&&!n.hidden);if(advanced.hidden===hasExtra)advanced.hidden=!hasExtra;
+ const files=panel.querySelector('#benchmarkFileCycle'),fileGroup=files&&files.parentNode.classList.contains('wv-bench-group')?files.parentNode:null;
+ const order=[automatic,manualGroup,fileGroup,advanced].filter(Boolean),current=Array.from(owner.children).filter(n=>order.includes(n));if(current.length!==order.length||current.some((n,i)=>n!==order[i]))for(const n of order)owner.appendChild(n);
+}
 function compactPanel(dialog){
  if(dialog.id!=='benchmarkOptionsDialog')return;const panel=dialog.querySelector('#settingsBenchmarkPanel');if(!panel)return;
  const doc=dialog.ownerDocument;dialog.classList.add('wv-bench-compact');
@@ -34,7 +50,7 @@ function compactPanel(dialog){
   if(!element.dataset.wvGrouped){details=doc.createElement('details');const summary=doc.createElement('summary');details.className='wv-bench-group';details.open=open;summary.textContent=title;details.appendChild(summary);element.parentNode.insertBefore(details,element);details.appendChild(element);element.dataset.wvGrouped='1';}
   if(details.hidden!==element.hidden)details.hidden=element.hidden;if(element.tagName!=='FORM')foldText(element,doc);
  }
- foldText(panel,doc);tooltips(dialog,panel);
+ foldText(panel,doc);regroupPanel(panel);tooltips(dialog,panel);
 }
 function bindBackdrop(dialog){
  if(dialog.dataset.wvBackdrop)return;dialog.dataset.wvBackdrop='1';let down=null,ready=false;
@@ -56,5 +72,5 @@ function enhanceDialog(dialog){
  compactPanel(dialog);
 }
 function install(doc){let scheduled=false;const scan=()=>{scheduled=false;for(const d of doc.querySelectorAll('dialog'))enhanceDialog(d);};const observer=new root.MutationObserver(records=>{const relevant=records.some(r=>r.target.closest&&r.target.closest('dialog')||Array.from(r.addedNodes||[]).some(n=>n.nodeType===1&&(n.tagName==='DIALOG'||n.querySelector&&n.querySelector('dialog'))));if(relevant&&!scheduled){scheduled=true;Promise.resolve().then(scan);}});scan();observer.observe(doc.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});return ()=>observer.disconnect();}
-root.WebVaultDialogUX={requestClose,enhanceDialog,compactPanel,install,bindBackdrop};if(root.document&&root.MutationObserver)install(root.document);
+root.WebVaultDialogUX={requestClose,enhanceDialog,compactPanel,install,bindBackdrop,regroupPanel};if(root.document&&root.MutationObserver)install(root.document);
 })(typeof window!=='undefined'?window:globalThis);
