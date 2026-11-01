@@ -27,6 +27,7 @@ namespace WebVault
             public string login { get; set; }
             public string password { get; set; }
             public string displayName { get; set; }
+            public bool rememberUntilDayEnd { get; set; }
         }
         private sealed class Session
         {
@@ -76,16 +77,32 @@ namespace WebVault
                 char[] buffer = new char[4097]; int count = 0; int read;
                 while (count < buffer.Length && (read = reader.Read(buffer, count, buffer.Length - count)) > 0) count += read;
                 if (count > 4096) throw new ApiError(413, "request_too_large");
-                Credentials value;
-                try { value = new JavaScriptSerializer().Deserialize<Credentials>(new string(buffer, 0, count)); }
-                catch (ArgumentException) { throw new ApiError(400, "invalid_json"); }
-                catch (InvalidOperationException) { throw new ApiError(400, "invalid_json"); }
-                if (value == null) throw new ApiError(400, "invalid_json");
-                value.login = (value.login ?? "").Trim();
-                if (!Regex.IsMatch(value.login, @"\A[A-Za-z0-9_.-]{3,64}\z") || value.password == null || value.password.Length > 128 || value.password.Length == 0)
-                    throw new ApiError(400, "invalid_credentials_format");
-                return value;
+                return ParseCredentials(new string(buffer,0,count));
             }
+        }
+        public static Credentials ParseCredentials(string json)
+        {
+            if (json == null) throw new ApiError(400,"invalid_json");
+            if (json.Length > 4096) throw new ApiError(413,"request_too_large");
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            System.Collections.Generic.Dictionary<string,object> raw;
+            try { raw = serializer.Deserialize<System.Collections.Generic.Dictionary<string,object>>(json); }
+            catch (ArgumentException) { throw new ApiError(400,"invalid_json"); }
+            catch (InvalidOperationException) { throw new ApiError(400,"invalid_json"); }
+            if (raw == null) throw new ApiError(400,"invalid_json");
+            bool remembered;
+            try { remembered = SessionLifetime.ReadRememberFlag(raw); }
+            catch (ArgumentException) { throw new ApiError(400,"invalid_remember_until_day_end"); }
+            Credentials value;
+            try { value = serializer.Deserialize<Credentials>(json); }
+            catch (ArgumentException) { throw new ApiError(400,"invalid_json"); }
+            catch (InvalidOperationException) { throw new ApiError(400,"invalid_json"); }
+            if (value == null) throw new ApiError(400,"invalid_json");
+            value.rememberUntilDayEnd = remembered;
+            value.login = (value.login ?? "").Trim();
+            if (!Regex.IsMatch(value.login, @"\A[A-Za-z0-9_.-]{3,64}\z") || value.password == null || value.password.Length > 128 || value.password.Length == 0)
+                throw new ApiError(400,"invalid_credentials_format");
+            return value;
         }
         private static void Rate(HttpContext context)
         {
@@ -110,12 +127,13 @@ namespace WebVault
             catch (FormatException) { throw new ApiError(401, "unauthenticated"); }
             return token;
         }
-        private static void SetCookie(HttpContext context, string name, string value, bool remove)
+        private static void SetCookie(HttpContext context, string name, string value, bool remove, DateTime? expiresUtc = null)
         {
             HttpCookie cookie = new HttpCookie(name, value);
             cookie.HttpOnly = true; cookie.Secure = context.Request.IsSecureConnection;
             cookie.Path = String.IsNullOrEmpty(context.Request.ApplicationPath) ? "/" : context.Request.ApplicationPath;
             if (remove) cookie.Expires = DateTime.UtcNow.AddDays(-1);
+            else if (expiresUtc.HasValue) cookie.Expires = expiresUtc.Value;
             context.Response.Cookies.Set(cookie);
         }
         private static Session Current(HttpContext context)
@@ -205,16 +223,18 @@ VALUES(@login,@normalized,@name,@hash,@salt,@algorithm,@iterations,1)", connecti
         private static void Login(HttpContext context, Credentials input)
         {
             string token = AuthCrypto.Token(); string csrf = AuthCrypto.Token();
-            bool accepted = false;
+            bool accepted = false; SessionLifetime.Plan lifetime = null;
             using (SqlConnection connection = Open())
-            using (SqlTransaction transaction = connection.BeginTransaction())
             {
-                int id=0, iterations=AuthCrypto.Iterations, failed=0; bool active=false, locked=false;
+                WebApi.RequireSessionSchema(connection);
+                using (SqlTransaction transaction = connection.BeginTransaction())
+                {
+                int id=0, iterations=AuthCrypto.Iterations, failed=0; bool active=false, locked=false, admin=false, required=false;
                 string algorithm=""; int version=0; byte[] expected=null; byte[] salt=new byte[32];
                 using (SqlCommand command = new SqlCommand(@"SELECT UserId,PasswordHash,PasswordSalt,PasswordAlgorithm,PasswordIterations,PasswordVersion,IsActive,
 CASE WHEN LockoutUntilUtc>SYSUTCDATETIME() THEN 1 ELSE 0 END,
-CASE WHEN LockoutUntilUtc IS NOT NULL AND LockoutUntilUtc<=SYSUTCDATETIME() THEN 0 ELSE FailedLoginCount END
-FROM auth.Users WITH (UPDLOCK,ROWLOCK) WHERE NormalizedLogin=@login", connection, transaction))
+CASE WHEN LockoutUntilUtc IS NOT NULL AND LockoutUntilUtc<=SYSUTCDATETIME() THEN 0 ELSE FailedLoginCount END,IsAdmin,MustChangePassword
+FROM auth.Users WITH (UPDLOCK,ROWLOCK) WHERE NormalizedLogin=@login AND DeletedUtc IS NULL", connection, transaction))
                 {
                     P(command, "@login", SqlDbType.NVarChar, input.login.ToUpperInvariant(), 64);
                     using (SqlDataReader reader = command.ExecuteReader())
@@ -222,7 +242,7 @@ FROM auth.Users WITH (UPDLOCK,ROWLOCK) WHERE NormalizedLogin=@login", connection
                         if (reader.Read())
                         {
                             id=reader.GetInt32(0); expected=(byte[])reader[1]; salt=(byte[])reader[2]; algorithm=reader.GetString(3);
-                            iterations=reader.GetInt32(4); version=reader.GetInt16(5); active=reader.GetBoolean(6); locked=reader.GetInt32(7)==1; failed=reader.GetInt32(8);
+                            iterations=reader.GetInt32(4); version=reader.GetInt16(5); active=reader.GetBoolean(6); locked=reader.GetInt32(7)==1; failed=reader.GetInt32(8); admin=reader.GetBoolean(9); required=reader.GetBoolean(10);
                         }
                     }
                 }
@@ -231,14 +251,21 @@ FROM auth.Users WITH (UPDLOCK,ROWLOCK) WHERE NormalizedLogin=@login", connection
                 accepted = id != 0 && supported && active && !locked && AuthCrypto.Equal(computed, expected);
                 if (accepted)
                 {
-                    using (SqlCommand command = new SqlCommand(@"UPDATE auth.Users SET FailedLoginCount=0,LockoutUntilUtc=NULL,LastLoginUtc=SYSUTCDATETIME(),UpdatedUtc=SYSUTCDATETIME() WHERE UserId=@id;
-DECLARE @now datetime2(3)=SYSUTCDATETIME();
-INSERT auth.UserSessions(UserId,TokenHash,CsrfTokenHash,CreatedUtc,LastSeenUtc,ExpiresUtc,AbsoluteExpiresUtc)
-VALUES(@id,@token,@csrf,@now,@now,DATEADD(minute,30,@now),DATEADD(hour,8,@now));", connection, transaction))
+                    DateTime now;
+                    using (SqlCommand clock = new SqlCommand("SELECT CAST(SYSUTCDATETIME() AS datetime2(3))",connection,transaction))
+                        now = DateTime.SpecifyKind((DateTime)clock.ExecuteScalar(),DateTimeKind.Utc);
+                    lifetime = SessionLifetime.Create(now,input.rememberUntilDayEnd,admin,required);
+                    using (SqlCommand command = new SqlCommand(@"UPDATE auth.Users SET FailedLoginCount=0,LockoutUntilUtc=NULL,LastLoginUtc=@now,UpdatedUtc=@now WHERE UserId=@id;
+INSERT auth.UserSessions(UserId,TokenHash,CsrfTokenHash,CreatedUtc,LastSeenUtc,ExpiresUtc,AbsoluteExpiresUtc,RememberUntilDayEnd)
+VALUES(@id,@token,@csrf,@now,@now,@expires,@absolute,@remember);", connection, transaction))
                     {
                         P(command, "@id", SqlDbType.Int, id, 0);
                         P(command, "@token", SqlDbType.Binary, AuthCrypto.Hash(token), 32);
                         P(command, "@csrf", SqlDbType.Binary, AuthCrypto.Hash(csrf), 32);
+                        P(command, "@now", SqlDbType.DateTime2, now, 0).Scale=3;
+                        P(command, "@expires", SqlDbType.DateTime2, lifetime.ExpiresUtc, 0).Scale=3;
+                        P(command, "@absolute", SqlDbType.DateTime2, lifetime.AbsoluteExpiresUtc, 0).Scale=3;
+                        P(command, "@remember", SqlDbType.Bit, lifetime.RememberUntilDayEnd, 0);
                         command.ExecuteNonQuery();
                     }
                 }
@@ -251,10 +278,12 @@ LockoutUntilUtc=CASE WHEN @failed>=5 THEN DATEADD(minute,15,SYSUTCDATETIME()) EL
                     }
                 }
                 transaction.Commit();
+                }
             }
             if (!accepted) throw new ApiError(401, "invalid_login_or_password");
-            SetCookie(context, SessionCookie, token, false); SetCookie(context, CsrfCookie, csrf, false);
-            Reply(context, 200, new { ok=true, next="me" });
+            DateTime? expiry = SessionLifetime.CookieExpiry(lifetime.AbsoluteExpiresUtc,lifetime.RememberUntilDayEnd);
+            SetCookie(context, SessionCookie, token, false, expiry); SetCookie(context, CsrfCookie, csrf, false, expiry);
+            Reply(context, 200, new { ok=true, next="me", session=new { rememberUntilDayEnd=lifetime.RememberUntilDayEnd, absoluteExpiresUtc=lifetime.AbsoluteExpiresUtc.ToString("o",System.Globalization.CultureInfo.InvariantCulture) } });
         }
         public void ProcessRequest(HttpContext context)
         {
@@ -277,6 +306,7 @@ LockoutUntilUtc=CASE WHEN @failed>=5 THEN DATEADD(minute,15,SYSUTCDATETIME()) EL
                 if (action == "setup") Setup(context,input); else Login(context,input);
             }
             catch (ApiError error) { Reply(context,error.Status,new { ok=false,error=error.Code }); }
+            catch (ApiFailure error) { Reply(context,error.Status,new { ok=false,error=error.Code }); }
             catch (Exception exception)
             {
                 string id=Guid.NewGuid().ToString("N");
