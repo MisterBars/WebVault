@@ -36,8 +36,17 @@ function compactPanel(dialog){
  }
  foldText(panel,doc);tooltips(dialog,panel);
 }
+function bindBackdrop(dialog){
+ if(dialog.dataset.wvBackdrop)return;dialog.dataset.wvBackdrop='1';let down=null,ready=false;
+ const reset=()=>{down=null;ready=false;};
+ function outside(e){if(e.target!==dialog||!Number.isFinite(e.clientX)||!Number.isFinite(e.clientY))return false;const r=dialog.getBoundingClientRect();return [r.left,r.top,r.right,r.bottom].every(Number.isFinite)&&(e.clientX<r.left||e.clientX>=r.right||e.clientY<r.top||e.clientY>=r.bottom);}
+ dialog.addEventListener('pointerdown',e=>{reset();if(e.button===0&&e.isPrimary!==false&&outside(e))down={id:e.pointerId,x:e.clientX,y:e.clientY};});
+ dialog.addEventListener('pointerup',e=>{ready=!!down&&down.id===e.pointerId&&e.button===0&&outside(e)&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<=8;down=null;});
+ dialog.addEventListener('click',e=>{const accepted=ready;reset();if(accepted&&e.button===0&&dialog.open&&outside(e)){e.preventDefault();requestClose(dialog);}});
+ dialog.addEventListener('pointercancel',reset);dialog.addEventListener('close',reset);
+}
 function enhanceDialog(dialog){
- const doc=dialog.ownerDocument;
+ const doc=dialog.ownerDocument;bindBackdrop(dialog);
  if(!dialog.classList.contains('wv-dialog-enhanced')){
   let header=dialog.querySelector('.modal-header');
   if(!header){header=doc.createElement('div');header.className='modal-header';const heading=Array.from(dialog.children).find(n=>/^H[12]$/.test(n.tagName)),title=heading||doc.createElement('h2');if(!heading)title.textContent=dialog.getAttribute('aria-label')||'Окно';header.appendChild(title);
@@ -47,5 +56,5 @@ function enhanceDialog(dialog){
  compactPanel(dialog);
 }
 function install(doc){let scheduled=false;const scan=()=>{scheduled=false;for(const d of doc.querySelectorAll('dialog'))enhanceDialog(d);};const observer=new root.MutationObserver(records=>{const relevant=records.some(r=>r.target.closest&&r.target.closest('dialog')||Array.from(r.addedNodes||[]).some(n=>n.nodeType===1&&(n.tagName==='DIALOG'||n.querySelector&&n.querySelector('dialog'))));if(relevant&&!scheduled){scheduled=true;Promise.resolve().then(scan);}});scan();observer.observe(doc.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden']});return ()=>observer.disconnect();}
-root.WebVaultDialogUX={requestClose,enhanceDialog,compactPanel,install};if(root.document&&root.MutationObserver)install(root.document);
+root.WebVaultDialogUX={requestClose,enhanceDialog,compactPanel,install,bindBackdrop};if(root.document&&root.MutationObserver)install(root.document);
 })(typeof window!=='undefined'?window:globalThis);

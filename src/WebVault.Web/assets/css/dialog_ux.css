@@ -1,4 +1,4 @@
-.wv-dialog-enhanced{max-height:calc(100vh - 32px);overflow:auto}
+.wv-dialog-enhanced{max-height:calc(100vh - 32px);overflow:auto;padding-top:0}
 .wv-dialog-enhanced>.modal-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--background-primary);border-bottom:1px solid var(--background-modifier-border);padding:8px 0}
 .wv-dialog-enhanced>.modal-header h1,.wv-dialog-enhanced>.modal-header h2{margin:0;font-size:var(--font-ui-large,1.1rem)}
 .wv-dialog-enhanced>.modal-header button{flex:none;min-width:32px;min-height:32px;margin:0}
