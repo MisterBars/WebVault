@@ -27,16 +27,16 @@ WHERE SessionId=@session AND UserId=@id AND RevokedUtc IS NULL AND ExpiresUtc>SY
   private static void Rate(int id){lock(RateLock){string key="WebVault.AccountSecurity:"+id;object previous=HttpRuntime.Cache[key];int count=previous==null?0:(int)previous;if(count>=5)throw new ApiFailure(429,"account_security_rate_limited");HttpRuntime.Cache.Insert(key,count+1,null,DateTime.UtcNow.AddMinutes(10),Cache.NoSlidingExpiration);}}
   private static void Revoke(SqlConnection db,SqlTransaction tx,int id,long keep=0)
   {using(SqlCommand q=new SqlCommand("UPDATE auth.UserSessions SET RevokedUtc=SYSUTCDATETIME() WHERE UserId=@id AND SessionId<>@keep AND RevokedUtc IS NULL",db,tx)){P(q,"@id",SqlDbType.Int,id);P(q,"@keep",SqlDbType.BigInt,keep);q.ExecuteNonQuery();}}
-  private static void SetCookies(HttpContext c,string token,string csrf)
-  {string[] names={"WebVaultSession","WebVaultCsrf"};string[] values={token,csrf};for(int i=0;i<names.Length;i++){HttpCookie cookie=new HttpCookie(names[i],values[i]);cookie.Path=String.IsNullOrEmpty(c.Request.ApplicationPath)?"/":c.Request.ApplicationPath;cookie.HttpOnly=true;cookie.Secure=c.Request.IsSecureConnection;c.Response.Cookies.Set(cookie);}}
+  private static void SetCookies(HttpContext c,string token,string csrf,ApiUser user)
+  {if(user.RememberUntilDayEnd&&(user.IsAdmin||user.MustChangePassword))throw new ApiFailure(401,"unauthenticated");DateTime? expiry=SessionLifetime.CookieExpiry(user.AbsoluteExpiresUtc,user.RememberUntilDayEnd);string[] names={"WebVaultSession","WebVaultCsrf"};string[] values={token,csrf};for(int i=0;i<names.Length;i++){HttpCookie cookie=new HttpCookie(names[i],values[i]);cookie.Path=String.IsNullOrEmpty(c.Request.ApplicationPath)?"/":c.Request.ApplicationPath;cookie.HttpOnly=true;cookie.Secure=c.Request.IsSecureConnection;if(expiry.HasValue)cookie.Expires=expiry.Value;c.Response.Cookies.Set(cookie);}}
   private static void Me(HttpContext c)
   {
    WebApi.Method(c,"GET");ApiUser u=WebApi.RequireUser(c,false,true);string csrf=WebApi.CookieToken(c,"WebVaultCsrf");if(!AuthCrypto.Equal(AuthCrypto.Hash(csrf),u.CsrfHash))throw new ApiFailure(403,"csrf_rejected");
-   using(SqlConnection db=WebApi.Open())using(SqlCommand q=new SqlCommand(@"UPDATE s SET LastSeenUtc=SYSUTCDATETIME(),ExpiresUtc=CASE WHEN DATEADD(minute,30,SYSUTCDATETIME())<s.AbsoluteExpiresUtc
+   using(SqlConnection db=WebApi.Open())using(SqlCommand q=new SqlCommand(@"UPDATE s SET LastSeenUtc=SYSUTCDATETIME(),ExpiresUtc=CASE WHEN s.RememberUntilDayEnd=1 THEN s.AbsoluteExpiresUtc WHEN DATEADD(minute,30,SYSUTCDATETIME())<s.AbsoluteExpiresUtc
 THEN DATEADD(minute,30,SYSUTCDATETIME()) ELSE s.AbsoluteExpiresUtc END FROM auth.UserSessions s JOIN auth.Users u ON u.UserId=s.UserId
-WHERE s.SessionId=@session AND u.UserId=@id AND u.IsActive=1 AND u.DeletedUtc IS NULL AND s.RevokedUtc IS NULL AND s.ExpiresUtc>SYSUTCDATETIME() AND s.AbsoluteExpiresUtc>SYSUTCDATETIME()",db))
+WHERE s.SessionId=@session AND u.UserId=@id AND u.IsActive=1 AND u.DeletedUtc IS NULL AND s.RevokedUtc IS NULL AND s.ExpiresUtc>SYSUTCDATETIME() AND s.AbsoluteExpiresUtc>SYSUTCDATETIME() AND (s.RememberUntilDayEnd=0 OR (u.IsAdmin=0 AND u.MustChangePassword=0))",db))
    {P(q,"@session",SqlDbType.BigInt,u.SessionId);P(q,"@id",SqlDbType.Int,u.UserId);if(q.ExecuteNonQuery()!=1)throw new ApiFailure(401,"unauthenticated");}
-   WebApi.Reply(c,200,new{ok=true,user=new{id=u.UserId,login=u.Login,displayName=u.DisplayName,isAdmin=u.IsAdmin,mustChangePassword=u.MustChangePassword,rowVersion=Convert.ToBase64String(u.RowVersion)},csrfToken=csrf});
+   WebApi.Reply(c,200,new{ok=true,user=new{id=u.UserId,login=u.Login,displayName=u.DisplayName,isAdmin=u.IsAdmin,mustChangePassword=u.MustChangePassword,rowVersion=Convert.ToBase64String(u.RowVersion)},csrfToken=csrf,session=new{rememberUntilDayEnd=u.RememberUntilDayEnd,absoluteExpiresUtc=u.AbsoluteExpiresUtc.ToString("o",System.Globalization.CultureInfo.InvariantCulture)}});
   }
   private static void Profile(HttpContext c,ApiUser user,Input input)
   {
@@ -87,7 +87,7 @@ WHERE SessionId=@session AND UserId=@user AND RevokedUtc IS NULL AND ExpiresUtc>
      }
      tx.Commit();
     }
-    if(!reset)SetCookies(c,sessionToken,csrfToken);WebApi.Reply(c,200,new{ok=true,mustChangePassword=reset,reauthenticationRequired=false});
+    if(!reset)SetCookies(c,sessionToken,csrfToken,user);WebApi.Reply(c,200,new{ok=true,mustChangePassword=reset,reauthenticationRequired=false});
    }finally{Slot.Release();}
   }
   public void ProcessRequest(HttpContext c)

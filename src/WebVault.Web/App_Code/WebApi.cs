@@ -10,7 +10,7 @@ namespace WebVault
     public sealed class ApiFailure:Exception
     {public int Status;public string Code;public ApiFailure(int status,string code){Status=status;Code=code;}}
     public sealed class ApiUser
-    {public int UserId;public long SessionId;public bool IsAdmin;public bool MustChangePassword;public string Login;public string DisplayName;public byte[] RowVersion;public byte[] CsrfHash;}
+    {public int UserId;public long SessionId;public bool IsAdmin;public bool MustChangePassword;public string Login;public string DisplayName;public byte[] RowVersion;public byte[] CsrfHash;public bool RememberUntilDayEnd;public DateTime AbsoluteExpiresUtc;}
     public static class WebApi
     {
         public static SqlConnection Open()
@@ -60,15 +60,22 @@ namespace WebVault
             try{if(Convert.FromBase64String(token).Length!=32)throw new FormatException();}
             catch(FormatException){throw new ApiFailure(401,"unauthenticated");}return token;
         }
+        public static void RequireSessionSchema(SqlConnection connection)
+        {
+            using(SqlCommand q=new SqlCommand("SELECT COL_LENGTH(N'auth.UserSessions',N'RememberUntilDayEnd')",connection))
+            {object value=q.ExecuteScalar();if(value==null||value==DBNull.Value)throw new ApiFailure(503,"session_schema_required");}
+        }
         public static ApiUser RequireUser(HttpContext c,bool write,bool allowPasswordChange=false)
         {
             string token=CookieToken(c,"WebVaultSession");
             using(SqlConnection connection=Open())
-            using(SqlCommand command=new SqlCommand(@"SELECT s.SessionId,u.UserId,u.IsAdmin,s.CsrfTokenHash,u.MustChangePassword,u.Login,u.DisplayName,u.RowVersion
+            using(SqlCommand command=new SqlCommand(@"SELECT s.SessionId,u.UserId,u.IsAdmin,s.CsrfTokenHash,u.MustChangePassword,u.Login,u.DisplayName,u.RowVersion,s.RememberUntilDayEnd,s.AbsoluteExpiresUtc
 FROM auth.UserSessions s JOIN auth.Users u ON u.UserId=s.UserId
 WHERE s.TokenHash=@hash AND s.RevokedUtc IS NULL AND s.ExpiresUtc>SYSUTCDATETIME()
-AND s.AbsoluteExpiresUtc>SYSUTCDATETIME() AND u.IsActive=1 AND u.DeletedUtc IS NULL",connection))
+AND s.AbsoluteExpiresUtc>SYSUTCDATETIME() AND u.IsActive=1 AND u.DeletedUtc IS NULL
+AND (s.RememberUntilDayEnd=0 OR (u.IsAdmin=0 AND u.MustChangePassword=0))",connection))
             {
+                RequireSessionSchema(connection);
                 command.Parameters.Add("@hash",SqlDbType.Binary,32).Value=AuthCrypto.Hash(token);
                 using(SqlDataReader reader=command.ExecuteReader())
                 {
@@ -79,7 +86,7 @@ AND s.AbsoluteExpiresUtc>SYSUTCDATETIME() AND u.IsActive=1 AND u.DeletedUtc IS N
                         if(header==null||header.Length!=44||!AuthCrypto.Equal(AuthCrypto.Hash(csrf),expected)||!AuthCrypto.Equal(AuthCrypto.Hash(header),expected))throw new ApiFailure(403,"csrf_rejected");
                     }
                     bool required=reader.GetBoolean(4);if(required&&!allowPasswordChange)throw new ApiFailure(403,"password_change_required");
-                    return new ApiUser{SessionId=reader.GetInt64(0),UserId=reader.GetInt32(1),IsAdmin=reader.GetBoolean(2),CsrfHash=expected,MustChangePassword=required,Login=reader.GetString(5),DisplayName=reader.GetString(6),RowVersion=(byte[])reader[7]};
+                    return new ApiUser{SessionId=reader.GetInt64(0),UserId=reader.GetInt32(1),IsAdmin=reader.GetBoolean(2),CsrfHash=expected,MustChangePassword=required,Login=reader.GetString(5),DisplayName=reader.GetString(6),RowVersion=(byte[])reader[7],RememberUntilDayEnd=reader.GetBoolean(8),AbsoluteExpiresUtc=DateTime.SpecifyKind(reader.GetDateTime(9),DateTimeKind.Utc)};
                 }
             }
         }
