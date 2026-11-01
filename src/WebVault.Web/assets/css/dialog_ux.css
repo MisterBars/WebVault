@@ -1,0 +1,18 @@
+.wv-dialog-enhanced{max-height:calc(100vh - 32px);overflow:auto}
+.wv-dialog-enhanced>.modal-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--background-primary);border-bottom:1px solid var(--background-modifier-border);padding:8px 0}
+.wv-dialog-enhanced>.modal-header h1,.wv-dialog-enhanced>.modal-header h2{margin:0;font-size:var(--font-ui-large,1.1rem)}
+.wv-dialog-enhanced>.modal-header button{flex:none;min-width:32px;min-height:32px;margin:0}
+#benchmarkOptionsDialog.wv-bench-compact{width:min(900px,calc(100vw - 32px))}
+#benchmarkOptionsDialog.wv-bench-compact #settingsBenchmarkPanel>h2,#benchmarkOptionsDialog.wv-bench-compact #settingsBenchmarkPanel>h3{display:none}
+#benchmarkOptionsDialog.wv-bench-compact .wv-bench-group{margin:8px 0;border:1px solid var(--background-modifier-border);border-radius:var(--input-radius);padding:8px 12px}
+#benchmarkOptionsDialog.wv-bench-compact .wv-bench-group>summary{cursor:pointer;font-weight:600;padding:4px 0}
+#benchmarkOptionsDialog.wv-bench-compact .wv-benchmark-options{gap:4px 12px}
+#benchmarkOptionsDialog.wv-bench-compact label{margin:6px 0}
+#benchmarkOptionsDialog.wv-bench-compact .wv-bench-explanation{margin:8px 0;color:var(--text-muted)}
+#benchmarkOptionsDialog.wv-bench-compact .wv-bench-explanation>summary{cursor:pointer}
+#benchmarkOptionsDialog.wv-bench-compact .wv-bench-explanation p{margin:6px 0}
+#benchmarkOptionsDialog .wv-bench-field{position:relative;padding-right:28px;min-width:0}
+#benchmarkOptionsDialog .wv-bench-help-button{position:absolute;right:0;top:6px;width:24px;height:24px;min-width:0;padding:0;margin:0;border-radius:50%;font:inherit}
+.wv-bench-tooltip{position:fixed;z-index:1000;box-sizing:border-box;padding:10px 12px;border:1px solid var(--background-modifier-border);border-radius:var(--input-radius);background:var(--background-primary);color:var(--text-normal);font:inherit;line-height:1.4;overflow-wrap:anywhere;max-height:calc(100vh - 32px);overflow:auto}
+.wv-bench-tooltip[hidden],#benchmarkOptionsDialog .wv-benchmark-help[hidden],#benchmarkOptionsDialog .wv-bench-group[hidden]{display:none!important}
+@media(max-width:650px){#benchmarkOptionsDialog.wv-bench-compact{width:calc(100vw - 16px)}.wv-dialog-enhanced{max-height:calc(100vh - 16px)}}
